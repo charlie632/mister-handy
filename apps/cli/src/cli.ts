@@ -5,8 +5,11 @@ import {
   editPlan,
   isRefusal,
   layer,
+  listProjects,
+  readProject,
   recordStatusUpdate,
-  runScript
+  runScript,
+  UnknownProject
 } from "@mister-handy/db"
 import {
   EnvironmentId,
@@ -21,6 +24,7 @@ import {
 } from "@mister-handy/domain"
 import { Config, Console, Data, Effect, FileSystem, Match, Option, Runtime, Schema } from "effect"
 import { Argument, CliError, Command, Flag } from "effect/cli"
+import { fileURLToPath } from "node:url"
 
 const localEnvironmentId = Effect.gen(function*() {
   const home = yield* Config.String("T3CODE_HOME")
@@ -82,9 +86,29 @@ const projectCreate = Command.make(
   })
 ).pipe(Command.withDescription("Create a project in Planning, with the calling thread as its coordinator"))
 
+const projectShow = Command.make(
+  "show",
+  { slug: Argument.String("slug").pipe(Argument.withSchema(ProjectSlug)) },
+  Effect.fnUntraced(function*({ slug }) {
+    const view = yield* readProject(slug)
+    if (view === null) return yield* new UnknownProject({ project: slug })
+    yield* Console.log(JSON.stringify(view, null, 2))
+  })
+).pipe(Command.withDescription("Print a project, its plan steps and each step's derived state, as JSON"))
+
+const projectList = Command.make(
+  "list",
+  {},
+  Effect.fnUntraced(function*() {
+    for (const { project } of yield* listProjects()) {
+      yield* Console.log(`${project.slug}\t${project.state}\t${project.name}`)
+    }
+  })
+).pipe(Command.withDescription("Print one line per project: slug, state and name, tab separated"))
+
 const project = Command.make("project").pipe(
-  Command.withDescription("Create projects"),
-  Command.withSubcommands([projectCreate]),
+  Command.withDescription("Create, list and show projects"),
+  Command.withSubcommands([projectCreate, projectShow, projectList]),
   Command.provide(layer)
 )
 
@@ -264,9 +288,48 @@ const db = Command.make("db").pipe(
   Command.withSubcommands([init, load])
 )
 
+// Three levels up from both src/cli.ts and the bundled dist/bin.js.
+const coordinatorSkill = fileURLToPath(new URL("../../../skills/coordinator", import.meta.url))
+
+const claudeSkills = Config.String("CLAUDE_CONFIG_DIR").pipe(
+  Config.orElse(() => Config.String("HOME").pipe(Config.map((home) => `${home}/.claude`))),
+  Config.map((dir) => `${dir}/skills`)
+)
+
+const skillInstall = Command.make(
+  "install",
+  {},
+  Effect.fnUntraced(function*() {
+    const fs = yield* FileSystem.FileSystem
+    const skills = yield* claudeSkills
+    const link = `${skills}/coordinator`
+    const current = yield* fs.readLink(link).pipe(Effect.option)
+    if (Option.isSome(current) && current.value === coordinatorSkill) return yield* report([])
+    if (Option.isNone(current) && (yield* fs.exists(link))) {
+      return yield* new CliError.UserError({
+        cause: null,
+        userMessage: `${link} exists and is not a symlink. Move it away and rerun.`
+      })
+    }
+    if (Option.isSome(current)) yield* fs.remove(link)
+    yield* fs.makeDirectory(skills, { recursive: true })
+    yield* fs.symlink(coordinatorSkill, link)
+    yield* report([
+      Option.isSome(current)
+        ? `Relinked ${link} to ${coordinatorSkill}, was ${current.value}.`
+        : `Linked ${link} to ${coordinatorSkill}.`
+    ])
+  })
+).pipe(Command.withDescription("Symlink the /coordinator skill into $CLAUDE_CONFIG_DIR/skills, by default ~/.claude/skills"))
+
+const skill = Command.make("skill").pipe(
+  Command.withDescription("Install the /coordinator skill for Claude Code"),
+  Command.withSubcommands([skillInstall])
+)
+
 const mrHandy = Command.make("mr-handy").pipe(
   Command.withDescription("Record a project's plan and progress in Mister Handy"),
-  Command.withSubcommands([project, stepCommand, dependency, status, db])
+  Command.withSubcommands([project, stepCommand, dependency, status, db, skill])
 )
 
 export const cli = (args: ReadonlyArray<string>) =>
