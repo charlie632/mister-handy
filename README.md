@@ -23,4 +23,4 @@ pnpm build
 pnpm exec mr-handy status --project chase-2146 --step s1 --environment <id> --thread <id>
 ```
 
-`mr-handy status` falls back to the `T3CODE_ENVIRONMENT_ID` and `T3CODE_THREAD_ID` environment variables when `--environment` or `--thread` is left out.
+`mr-handy status` fills in `--thread` from `T3CODE_THREAD_ID` and `--environment` from `$T3CODE_HOME/userdata/environment-id` when they are left out. T3 Code sets both variables in every thread.
