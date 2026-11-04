@@ -16,7 +16,7 @@ import {
   TicketKey,
   TicketObservation
 } from "@mister-handy/domain"
-import { Config, Data, DateTime, Effect, Schema } from "effect"
+import { Config, Data, Effect, Schema } from "effect"
 import { SqlClient } from "effect/sql"
 import { mkdirSync } from "node:fs"
 import { homedir } from "node:os"
@@ -188,18 +188,20 @@ export const listProjects = Effect.fn("listProjects")(function*() {
   return views.filter((view) => view !== null)
 })
 
-export const CloseStep = Schema.Struct({
-  project: ProjectSlug,
-  stepId: PlanStepId,
-  closedAs: ClosedAs
-})
-export type CloseStep = typeof CloseStep.Type
-
-/** Marks a step Done or Dropped. A step already closed keeps its first mark, so a retry changes nothing. */
-export const closeStep = Effect.fn("closeStep")(function*({ project, stepId, closedAs }: CloseStep) {
-  const sql = yield* SqlClient.SqlClient
-  const closedAt = DateTime.formatIso(yield* DateTime.now)
-  yield* sql`
-    UPDATE plan_step SET closed_as = ${closedAs}, closed_at = ${closedAt}
-    WHERE project_slug = ${project} AND step_id = ${stepId} AND closed_as IS NULL`
-})
+export {
+  closeStep,
+  CloseStep,
+  createProject,
+  DependencyCycle,
+  editPlan,
+  isRefusal,
+  LinkedElsewhere,
+  NewProject,
+  ProjectExists,
+  recordStatusUpdate,
+  type Refusal,
+  StepExists,
+  TicketTaken,
+  UnknownProject,
+  UnknownStep
+} from "./writes.ts"
