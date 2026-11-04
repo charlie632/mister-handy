@@ -6,7 +6,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p .",
+    "typecheck": "effect-tsgo tsc -p .",
     "test": "vitest run"
   },
   "dependencies": {

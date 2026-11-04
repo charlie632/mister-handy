@@ -20,8 +20,8 @@ describe("PlanStep", () => {
 
 describe("TicketKey", () => {
   it("rejects a key without a project prefix", () => {
-    expect(Exit.isFailure(Schema.decodeUnknownExit(TicketKey)("2147"))).toBe(true)
-    expect(Exit.isFailure(Schema.decodeUnknownExit(TicketKey)("chase-2147"))).toBe(true)
+    expect(Exit.isFailure(Schema.decodeExit(TicketKey)("2147"))).toBe(true)
+    expect(Exit.isFailure(Schema.decodeExit(TicketKey)("chase-2147"))).toBe(true)
   })
 })
 

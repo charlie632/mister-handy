@@ -7,7 +7,7 @@ const localEnvironmentId = Effect.gen(function*() {
   const home = yield* Config.String("T3CODE_HOME")
   const fs = yield* FileSystem.FileSystem
   const raw = yield* fs.readFileString(`${home}/userdata/environment-id`)
-  return yield* Schema.decodeUnknownEffect(EnvironmentId)(raw.trim())
+  return yield* Schema.decodeEffect(EnvironmentId)(raw.trim())
 })
 
 const status = Command.make(
@@ -28,7 +28,7 @@ const status = Command.make(
       stepId: step,
       thread: { environmentId, threadId: thread }
     })
-    yield* Console.log(JSON.stringify(Schema.encodeSync(StatusUpdate)(update)))
+    yield* Console.log(JSON.stringify(yield* Schema.encodeEffect(StatusUpdate)(update)))
   })
 ).pipe(Command.withDescription("Report that a plan step started in a thread"))
 

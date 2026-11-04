@@ -6,7 +6,7 @@
     "mr-handy": "./bin/mr-handy.js"
   },
   "scripts": {
-    "typecheck": "tsc -p .",
+    "typecheck": "effect-tsgo tsc -p .",
     "build": "vite build"
   },
   "dependencies": {
