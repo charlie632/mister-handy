@@ -3,6 +3,7 @@ import { Effect, Exit, Schema } from "effect"
 import {
   deriveStepNodes,
   EnvironmentId,
+  findCycle,
   PlanStep,
   PlanStepId,
   type StepThread,
@@ -77,5 +78,25 @@ describe("deriveStepNodes", () => {
     expect(firstNode?.state).toBe("Ready")
     expect(node?.state).toBe("Blocked")
     expect(node?.earlyStart).toBe(false)
+  })
+})
+
+describe("findCycle", () => {
+  const a = PlanStepId.make("a")
+  const b = PlanStepId.make("b")
+  const c = PlanStepId.make("c")
+  const d = PlanStepId.make("d")
+  const chain = [{ before: a, after: b }, { before: b, after: c }]
+
+  it("allows an edge that only adds another path through the graph", () => {
+    expect(findCycle([...chain, { before: a, after: d }], { before: d, after: c })).toBeNull()
+  })
+
+  it("returns the loop an edge would close, in the direction the edges point", () => {
+    expect(findCycle(chain, { before: c, after: a })).toEqual([a, b, c, a])
+  })
+
+  it("treats a step depending on itself as a cycle", () => {
+    expect(findCycle(chain, { before: b, after: b })).toEqual([b, b])
   })
 })

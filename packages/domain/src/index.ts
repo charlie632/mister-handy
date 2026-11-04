@@ -105,6 +105,73 @@ export const StatusUpdate = Schema.TaggedUnion({
 })
 export type StatusUpdate = typeof StatusUpdate.Type
 
+/** `before` finishes first and `after` waits on it. */
+export const Dependency = Schema.Struct({ before: PlanStepId, after: PlanStepId })
+export type Dependency = typeof Dependency.Type
+
+export const NewStep = Schema.Struct({ id: PlanStepId, title: Schema.NonEmptyString })
+export type NewStep = typeof NewStep.Type
+
+export const PlanEdit = Schema.TaggedUnion({
+  AddStep: {
+    project: ProjectSlug,
+    step: PlanStepId,
+    title: Schema.NonEmptyString,
+    ticket: Schema.NullOr(TicketKey),
+    /** null appends at the end of the plan. */
+    after: Schema.NullOr(PlanStepId),
+    dependsOn: Schema.Array(PlanStepId)
+  },
+  RewriteStep: {
+    project: ProjectSlug,
+    step: PlanStepId,
+    title: Schema.optionalKey(Schema.NonEmptyString),
+    ticket: Schema.optionalKey(TicketKey)
+  },
+  /** The original keeps its id, ticket, threads, pull requests and edges. Each part copies its edges. */
+  SplitStep: { project: ProjectSlug, step: PlanStepId, parts: Schema.NonEmptyArray(NewStep) },
+  /** Marks the step Dropped. What waited on it waits on its dependencies instead. */
+  DropStep: { project: ProjectSlug, step: PlanStepId },
+  AddDependency: { project: ProjectSlug, step: PlanStepId, on: PlanStepId },
+  RemoveDependency: { project: ProjectSlug, step: PlanStepId, on: PlanStepId }
+})
+export type PlanEdit = typeof PlanEdit.Type
+
+/** What an edit actually changed. An empty list means the plan already looked like that. */
+export type PlanChange =
+  | { readonly _tag: "StepAdded"; readonly step: PlanStepId; readonly position: number }
+  | { readonly _tag: "StepRewritten"; readonly step: PlanStepId }
+  | { readonly _tag: "StepClosed"; readonly step: PlanStepId; readonly closedAs: ClosedAs; readonly ticket: TicketKey | null }
+  | { readonly _tag: "DependencyAdded"; readonly dependency: Dependency }
+  | { readonly _tag: "DependencyRemoved"; readonly dependency: Dependency }
+
+/**
+ * The cycle that adding `edge` would close, as [edge.after, ..., edge.before, edge.after] in the direction
+ * the edges point, or null when the graph stays acyclic.
+ */
+export const findCycle = (
+  edges: ReadonlyArray<Dependency>,
+  edge: Dependency
+): ReadonlyArray<PlanStepId> | null => {
+  const waiters = new Map<PlanStepId, Array<PlanStepId>>()
+  for (const { before, after } of edges) waiters.set(before, [...(waiters.get(before) ?? []), after])
+  const reachedFrom = new Map<PlanStepId, PlanStepId | null>([[edge.after, null]])
+  const queue = [edge.after]
+  for (const node of queue) {
+    if (node === edge.before) {
+      const path = [edge.after]
+      for (let at: PlanStepId | null = node; at !== null; at = reachedFrom.get(at) ?? null) path.unshift(at)
+      return path
+    }
+    for (const next of waiters.get(node) ?? []) {
+      if (reachedFrom.has(next)) continue
+      reachedFrom.set(next, node)
+      queue.push(next)
+    }
+  }
+  return null
+}
+
 export const threadDeepLink = (ref: ThreadRef): string =>
   `t3code://threads/${encodeURIComponent(ref.environmentId)}/${encodeURIComponent(ref.threadId)}`
 
