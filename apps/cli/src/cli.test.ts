@@ -1,0 +1,60 @@
+import { NodeServices } from "@effect/platform-node"
+import { describe, expect, it } from "@effect/vitest"
+import { layer, readProject } from "@mister-handy/db"
+import { ProjectSlug } from "@mister-handy/domain"
+import { ConfigProvider, Console, Effect, Exit } from "effect"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { cli } from "./cli.ts"
+
+describe("mr-handy", () => {
+  it.effect("writes a plan and a status update, and refuses a cycle", () => {
+    const env = { MR_HANDY_DB: join(mkdtempSync(join(tmpdir(), "mr-handy-cli-")), "test.db") }
+    const stdout: Array<string> = []
+    const stderr: Array<string> = []
+    const run = (...args: ReadonlyArray<string>) => {
+      stdout.length = 0
+      stderr.length = 0
+      return Effect.exit(cli(args))
+    }
+    return Effect.gen(function*() {
+      yield* run("db", "init")
+      yield* run("project", "create", "demo", "--name", "Demo", "--environment", "env-1", "--thread", "coordinator")
+      expect(stdout).toEqual(["Created project demo in Planning."])
+      yield* run("step", "add", "first", "--project", "demo", "--title", "First")
+      yield* run("step", "--project", "demo", "add", "second", "--title", "Second", "--depends-on", "first")
+      expect(stdout, "shared --project before the verb").toEqual([
+        "Added step second at position 2.",
+        "Added dependency: second depends on first."
+      ])
+      yield* run("step", "split", "second", "--project", "demo", "--part", "second-b=Second, b=c", "--part", "second-a=Second, a")
+      yield* run("status", "started", "--project", "demo", "--step", "first", "--environment", "env-1", "--thread", "step-1")
+      expect(stdout).toEqual(["Recorded: step first started in thread env-1/step-1."])
+      yield* run("status", "started", "--project", "demo", "--step", "first", "--environment", "env-1", "--thread", "step-1")
+      expect(stdout, "retry").toEqual(["No change."])
+
+      const view = yield* readProject(ProjectSlug.make("demo")).pipe(Effect.provide(layer))
+      expect(view?.steps.map((n) => [n.step.id, n.step.title, n.step.dependsOn])).toEqual([
+        ["first", "First", []],
+        ["second", "Second", ["first"]],
+        ["second-b", "Second, b=c", ["first"]],
+        ["second-a", "Second, a", ["first"]]
+      ])
+      expect(view?.steps[0]?.threads.map((t) => t.threadId)).toEqual(["step-1"])
+
+      const refused = yield* run("dependency", "add", "first", "--project", "demo", "--on", "second")
+      expect(Exit.isFailure(refused), "refusal fails the command").toBe(true)
+      expect(stderr).toEqual(["Refused: first depending on second would close a cycle: first -> second -> first."])
+      expect(stdout).toEqual([])
+    }).pipe(
+      Effect.provide(NodeServices.layer),
+      Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromEnv({ env })),
+      Effect.provideService(Console.Console, {
+        ...globalThis.console,
+        log: (...args: ReadonlyArray<unknown>) => void stdout.push(args.join(" ")),
+        error: (...args: ReadonlyArray<unknown>) => void stderr.push(args.join(" "))
+      })
+    )
+  })
+})

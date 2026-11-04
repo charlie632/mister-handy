@@ -1,0 +1,276 @@
+import {
+  applySchema,
+  createProject,
+  databasePath,
+  editPlan,
+  isRefusal,
+  layer,
+  recordStatusUpdate,
+  runScript
+} from "@mister-handy/db"
+import {
+  EnvironmentId,
+  NewStep,
+  type PlanChange,
+  PlanEdit,
+  PlanStepId,
+  ProjectSlug,
+  StatusUpdate,
+  ThreadId,
+  TicketKey
+} from "@mister-handy/domain"
+import { Config, Console, Data, Effect, FileSystem, Match, Option, Runtime, Schema } from "effect"
+import { Argument, CliError, Command, Flag } from "effect/cli"
+
+const localEnvironmentId = Effect.gen(function*() {
+  const home = yield* Config.String("T3CODE_HOME")
+  const fs = yield* FileSystem.FileSystem
+  const raw = yield* fs.readFileString(`${home}/userdata/environment-id`)
+  return yield* Schema.decodeEffect(EnvironmentId)(raw.trim())
+})
+
+const t3Thread = Config.schema(ThreadId, "T3CODE_THREAD_ID")
+
+const poster = Effect.all({ environmentId: localEnvironmentId, threadId: t3Thread }).pipe(
+  Effect.orElseSucceed(() => null)
+)
+
+const describe = Match.type<PlanChange>().pipe(Match.tagsExhaustive({
+  StepAdded: ({ step, position }) => `Added step ${step} at position ${position}.`,
+  StepRewritten: ({ step }) => `Rewrote step ${step}.`,
+  StepClosed: ({ step, closedAs, ticket }) =>
+    closedAs === "Done"
+      ? `Marked step ${step} Done.`
+      : `Dropped step ${step}.${ticket === null ? "" : ` Close its ticket ${ticket} in Jira.`}`,
+  DependencyAdded: ({ dependency }) => `Added dependency: ${dependency.after} depends on ${dependency.before}.`,
+  DependencyRemoved: ({ dependency }) => `Removed dependency: ${dependency.after} depends on ${dependency.before}.`
+}))
+
+const report = (changes: ReadonlyArray<string>) =>
+  changes.length === 0 ? Console.log("No change.") : Effect.forEach(changes, (line) => Console.log(line))
+
+const reportPlan = (changes: ReadonlyArray<PlanChange>) => report(changes.map(describe))
+
+class Refused extends Data.TaggedError("Refused") {
+  override readonly [Runtime.errorReported] = false
+}
+
+const projectFlag = Flag.String("project").pipe(Flag.withSchema(ProjectSlug))
+const stepArgument = Argument.String("step").pipe(Argument.withSchema(PlanStepId))
+const stepFlag = (name: string) => Flag.String(name).pipe(Flag.withSchema(PlanStepId))
+const titleFlag = Flag.String("title").pipe(Flag.withSchema(Schema.NonEmptyString))
+const ticketFlag = Flag.String("ticket").pipe(Flag.withSchema(TicketKey), Flag.optional)
+
+const projectCreate = Command.make(
+  "create",
+  {
+    slug: Argument.String("slug").pipe(Argument.withSchema(ProjectSlug)),
+    name: Flag.String("name").pipe(Flag.withSchema(Schema.NonEmptyString)),
+    epic: Flag.String("epic").pipe(Flag.withSchema(TicketKey), Flag.optional),
+    environment: Flag.String("environment").pipe(Flag.withSchema(EnvironmentId), Flag.optional),
+    thread: Flag.String("thread").pipe(Flag.withSchema(ThreadId), Flag.withFallbackConfig(t3Thread))
+  },
+  Effect.fnUntraced(function*({ slug, name, epic, environment, thread }) {
+    const environmentId = Option.isSome(environment) ? environment.value : yield* localEnvironmentId
+    const created = yield* createProject({
+      slug,
+      name,
+      epic: Option.getOrNull(epic),
+      coordinator: { environmentId, threadId: thread }
+    })
+    yield* report(created ? [`Created project ${slug} in Planning.`] : [])
+  })
+).pipe(Command.withDescription("Create a project in Planning, with the calling thread as its coordinator"))
+
+const project = Command.make("project").pipe(
+  Command.withDescription("Create projects"),
+  Command.withSubcommands([projectCreate]),
+  Command.provide(layer)
+)
+
+const stepGroup = Command.make("step").pipe(Command.withSharedFlags({ project: projectFlag }))
+
+const stepAdd = Command.make(
+  "add",
+  {
+    step: stepArgument,
+    title: titleFlag,
+    ticket: ticketFlag,
+    after: stepFlag("after").pipe(Flag.optional),
+    dependsOn: stepFlag("depends-on").pipe(Flag.atLeast(0))
+  },
+  Effect.fnUntraced(function*({ step, title, ticket, after, dependsOn }) {
+    const { project } = yield* stepGroup
+    yield* reportPlan(
+      yield* editPlan(PlanEdit.cases.AddStep.make({
+        project,
+        step,
+        title,
+        ticket: Option.getOrNull(ticket),
+        after: Option.getOrNull(after),
+        dependsOn
+      }))
+    )
+  })
+).pipe(Command.withDescription("Add a step, at the end of the plan unless --after says where"))
+
+const stepRewrite = Command.make(
+  "rewrite",
+  { step: stepArgument, title: titleFlag.pipe(Flag.optional), ticket: ticketFlag },
+  Effect.fnUntraced(function*({ step, title, ticket }) {
+    const { project } = yield* stepGroup
+    if (Option.isNone(title) && Option.isNone(ticket)) {
+      return yield* new CliError.UserError({ cause: null, userMessage: "step rewrite needs --title or --ticket." })
+    }
+    yield* reportPlan(
+      yield* editPlan(PlanEdit.cases.RewriteStep.make({
+        project,
+        step,
+        ...(Option.isSome(title) ? { title: title.value } : {}),
+        ...(Option.isSome(ticket) ? { ticket: ticket.value } : {})
+      }))
+    )
+  })
+).pipe(Command.withDescription("Change a step's title or ticket"))
+
+const parsePart = (value: string) => {
+  const at = value.indexOf("=")
+  return at === -1
+    ? Option.none()
+    : Schema.decodeOption(NewStep)({ id: value.slice(0, at), title: value.slice(at + 1) })
+}
+
+const stepSplit = Command.make(
+  "split",
+  {
+    step: stepArgument,
+    parts: Flag.String("part").pipe(
+      Flag.filterMap(parsePart, () => "<new-step>=<title>"),
+      Flag.atLeast(1)
+    )
+  },
+  Effect.fnUntraced(function*({ step, parts: [first, ...rest] }) {
+    const { project } = yield* stepGroup
+    if (first === undefined) return yield* new CliError.MissingOption({ option: "part" })
+    yield* reportPlan(yield* editPlan(PlanEdit.cases.SplitStep.make({ project, step, parts: [first, ...rest] })))
+  })
+).pipe(Command.withDescription("Split new steps off a step. Each part waits on what it waited on, and blocks what it blocked"))
+
+const stepDrop = Command.make(
+  "drop",
+  { step: stepArgument },
+  Effect.fnUntraced(function*({ step }) {
+    const { project } = yield* stepGroup
+    yield* reportPlan(yield* editPlan(PlanEdit.cases.DropStep.make({ project, step })))
+  })
+).pipe(Command.withDescription("Mark a step Dropped. What waited on it waits on its dependencies instead"))
+
+const stepCommand = stepGroup.pipe(
+  Command.withDescription("Add, rewrite, split or drop plan steps"),
+  Command.withSubcommands([stepAdd, stepRewrite, stepSplit, stepDrop]),
+  Command.provide(layer)
+)
+
+const dependencyGroup = Command.make("dependency").pipe(Command.withSharedFlags({ project: projectFlag }))
+
+const edgeConfig = { step: stepArgument, on: stepFlag("on") }
+
+const dependencyAdd = Command.make(
+  "add",
+  edgeConfig,
+  Effect.fnUntraced(function*({ step, on }) {
+    const { project } = yield* dependencyGroup
+    yield* reportPlan(yield* editPlan(PlanEdit.cases.AddDependency.make({ project, step, on })))
+  })
+).pipe(Command.withDescription("Make a step wait on another"))
+
+const dependencyRemove = Command.make(
+  "remove",
+  edgeConfig,
+  Effect.fnUntraced(function*({ step, on }) {
+    const { project } = yield* dependencyGroup
+    yield* reportPlan(yield* editPlan(PlanEdit.cases.RemoveDependency.make({ project, step, on })))
+  })
+).pipe(Command.withDescription("Stop a step waiting on another"))
+
+const dependency = dependencyGroup.pipe(
+  Command.withDescription("Add or remove dependencies between plan steps"),
+  Command.withSubcommands([dependencyAdd, dependencyRemove]),
+  Command.provide(layer)
+)
+
+const started = Command.make(
+  "started",
+  {
+    project: projectFlag,
+    step: stepFlag("step"),
+    environment: Flag.String("environment").pipe(Flag.withSchema(EnvironmentId), Flag.optional),
+    thread: Flag.String("thread").pipe(Flag.withSchema(ThreadId))
+  },
+  Effect.fnUntraced(function*({ project, step, environment, thread }) {
+    const environmentId = Option.isSome(environment) ? environment.value : yield* localEnvironmentId
+    const update = StatusUpdate.cases.StepStarted.make({
+      project,
+      stepId: step,
+      thread: { environmentId, threadId: thread }
+    })
+    const recorded = yield* recordStatusUpdate(update, yield* poster)
+    yield* report(recorded ? [`Recorded: step ${step} started in thread ${environmentId}/${thread}.`] : [])
+  })
+).pipe(Command.withDescription("Report that a step thread started work on a plan step"))
+
+const pullRequestOpened = Command.make(
+  "pr-opened",
+  {
+    project: projectFlag,
+    step: stepFlag("step"),
+    url: Flag.String("url").pipe(Flag.withSchema(Schema.URLFromString))
+  },
+  Effect.fnUntraced(function*({ project, step, url }) {
+    const update = StatusUpdate.cases.PullRequestOpened.make({ project, stepId: step, url })
+    const recorded = yield* recordStatusUpdate(update, yield* poster)
+    yield* report(recorded ? [`Recorded: pull request ${url.href} opened for step ${step}.`] : [])
+  })
+).pipe(Command.withDescription("Report that a pull request was opened for a plan step"))
+
+const status = Command.make("status").pipe(
+  Command.withDescription("Report a plan step's progress"),
+  Command.withSubcommands([started, pullRequestOpened]),
+  Command.provide(layer)
+)
+
+const init = Command.make(
+  "init",
+  {},
+  Effect.fnUntraced(function*() {
+    const filename = yield* databasePath
+    yield* applySchema(filename)
+    yield* Console.log(`Schema applied to ${filename}`)
+  })
+).pipe(Command.withDescription("Create the database tables that don't exist yet"))
+
+const load = Command.make(
+  "load",
+  { script: Argument.FileText("file") },
+  Effect.fnUntraced(function*({ script }) {
+    const filename = yield* databasePath
+    yield* runScript(filename, script)
+    yield* Console.log(`Loaded into ${filename}`)
+  })
+).pipe(Command.withDescription("Run a SQL file against the database in one transaction"))
+
+const db = Command.make("db").pipe(
+  Command.withDescription(`Manage the SQLite database at $MR_HANDY_DB, by default ~/.mr-handy/mister-handy.db`),
+  Command.withSubcommands([init, load])
+)
+
+const mrHandy = Command.make("mr-handy").pipe(
+  Command.withDescription("Record a project's plan and progress in Mister Handy"),
+  Command.withSubcommands([project, stepCommand, dependency, status, db])
+)
+
+export const cli = (args: ReadonlyArray<string>) =>
+  Command.runWith(mrHandy, { version: "0.0.0" })(args).pipe(
+    Effect.catchIf(isRefusal, (refusal) =>
+      Console.error(`Refused: ${refusal.message}`).pipe(Effect.andThen(Effect.fail(new Refused()))))
+  )
