@@ -13,7 +13,7 @@ One of **Planning**, **Active**, **Paused** or **Done**. The user sets it. It's 
 _Avoid_: Archived, closed
 
 **Coordinator**:
-The one long-running thread that runs a project. It knows which plan step the project is on and which threads are working. It never does a step's work itself. It hands each step to a step thread.
+The one long-running thread that runs a project. It knows which plan step the project is on and which threads are working. It never touches code or branches itself, rebases and restacks included. It hands every piece of work to a step thread.
 _Avoid_: Chief of staff, orchestrator, owner
 
 **Wiki**:

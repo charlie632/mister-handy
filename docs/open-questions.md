@@ -11,6 +11,7 @@
 - 2026-11-04: The pages can be served over the user's Tailscale network, so they open from any of the user's devices.
 - 2026-11-04: The plan can change at any time, so `mr-handy` gets commands that edit the plan (add, rewrite, split or drop a step, and add or remove a dependency), not only status updates.
 - 2026-11-04: Tracer bullets and blocker steps are dropped. The plan alone dictates what each step is.
+- 2026-11-04: The coordinator does no housekeeping either. Rebases, restacks and review fixes all go to a step thread.
 
 ## Open
 
