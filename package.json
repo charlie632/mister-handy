@@ -13,6 +13,7 @@
     "dev": "pnpm -r --parallel dev"
   },
   "devDependencies": {
+    "@mister-handy/cli": "workspace:*",
     "@effect/language-service": "catalog:",
     "typescript": "catalog:"
   }

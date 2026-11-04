@@ -1,0 +1,22 @@
+{
+  "name": "@mister-handy/cli",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "mr-handy": "./dist/bin.js"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "build": "vite build",
+    "dev": "node src/bin.ts"
+  },
+  "dependencies": {
+    "@effect/platform-node": "catalog:",
+    "@mister-handy/domain": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "vite": "catalog:"
+  }
+}

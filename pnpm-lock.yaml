@@ -65,6 +65,9 @@ importers:
       '@effect/language-service':
         specifier: 'catalog:'
         version: 0.87.5
+      '@mister-handy/cli':
+        specifier: workspace:*
+        version: link:apps/cli
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
