@@ -3,12 +3,11 @@
   "private": true,
   "type": "module",
   "bin": {
-    "mr-handy": "./dist/bin.js"
+    "mr-handy": "./bin/mr-handy.js"
   },
   "scripts": {
     "typecheck": "tsc -p .",
-    "build": "vite build",
-    "dev": "node src/bin.ts"
+    "build": "vite build"
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",

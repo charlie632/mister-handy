@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { NodeRuntime, NodeServices } from "@effect/platform-node"
 import { EnvironmentId, PlanStepId, ProjectSlug, StatusUpdate, ThreadId } from "@mister-handy/domain"
 import { Config, Console, Effect, Schema } from "effect"
