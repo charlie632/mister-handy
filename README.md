@@ -10,6 +10,7 @@ One place to watch every project you're running at once: its plan, where each pl
 - `packages/db` holds the SQLite schema and the queries the pages and the CLI run. [docs/storage.md](docs/storage.md) describes the model.
 - `apps/web` is the TanStack Start app with the Home page and Project pages.
 - `apps/cli` is `mr-handy`, the CLI a coordinator thread uses to write the plan, post status updates and set up the database.
+- `skills/coordinator` is the `/coordinator` skill that turns a T3 thread into a project's coordinator.
 
 ## Running it
 
@@ -56,13 +57,29 @@ mr-handy status started   --project chase-2146 --step require-viewer --thread <s
 mr-handy status pr-opened --project chase-2146 --step require-viewer --url https://github.com/cerbyinc/platform/pull/36673
 ```
 
-Each command prints one line per change, or `No change.` when the database already looked like that, so every command is safe to rerun. A command that conflicts with what is stored, names an unknown project or step, or would close a dependency cycle prints `Refused:` and the reason on stderr, writes nothing, and exits 1.
+`mr-handy skill install` links this checkout's `skills/coordinator` into `$CLAUDE_CONFIG_DIR/skills`, by default `~/.claude/skills`. Rerunning it changes nothing, a link to another checkout is replaced, and a real directory in the way is refused.
+
+`mr-handy project list` prints one tab-separated line per project: slug, state and name. `mr-handy project show <slug>` prints the project, its steps and each step's derived state as JSON.
+
+Each write command prints one line per change, or `No change.` when the database already looked like that, so every command is safe to rerun. A command that conflicts with what is stored, names an unknown project or step, or would close a dependency cycle prints `Refused:` and the reason on stderr, writes nothing, and exits 1.
 
 - `step add` appends the step unless `--after` names the step it goes after. `--depends-on` can be repeated.
 - `step split` keeps the original step with its ticket, threads and pull requests, and adds each `--part <id>=<title>` right after it. Each part waits on what the original waited on, and whatever waited on the original waits on each part too.
 - `step drop` marks the step Dropped. Its threads and pull requests stay, and each step that waited on it waits on its dependencies instead.
 - `project create` fills in `--thread` from `T3CODE_THREAD_ID` and `--environment` from `$T3CODE_HOME/userdata/environment-id` when they are left out, so the calling thread becomes the coordinator. T3 Code sets both variables in every thread.
 - `status started --thread` names the step thread, so it has no fallback. `--environment` falls back as above. The thread that runs a status command is recorded as the update's poster.
+
+## Running a coordinator
+
+The `/coordinator` skill runs a project from a T3 thread. It needs `mr-handy` on PATH and the skill in Claude Code's user skills, because coordinators usually run in another repo's T3 project:
+
+```sh
+pnpm build
+(cd apps/cli && pnpm link --global)                          # puts mr-handy on PATH; needs PNPM_HOME set
+mr-handy skill install                                       # symlinks skills/coordinator into ~/.claude/skills
+```
+
+In a new T3 thread, `/coordinator <what the project should achieve>` starts a new project: it names it, plans it with `/poteto-mode` and mirrors the plan into the database. `/coordinator <slug>` resumes one from the database and its wiki under `~/.mr-handy/<slug>/`. [skills/coordinator/SKILL.md](skills/coordinator/SKILL.md) holds the rules, including what the coordinator may do without asking.
 
 ## Serving it on the tailnet
 

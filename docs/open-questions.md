@@ -12,10 +12,11 @@
 - 2026-11-04: The plan can change at any time, so `mr-handy` gets commands that edit the plan (add, rewrite, split or drop a step, and add or remove a dependency), not only status updates.
 - 2026-11-04: Tracer bullets and blocker steps are dropped. The plan alone dictates what each step is.
 - 2026-11-04: The coordinator does no housekeeping either. Rebases, restacks and review fixes all go to a step thread.
+- 2026-11-04: The coordinator runs from the `/coordinator` skill, which lists what it may do without asking. Step threads are top-level T3 threads launched into a worktree, and they report back by messaging the coordinator thread.
 
 ## Open
 
-1. **What the coordinator may do without asking.** It will be launched from a skill or an agent prompt. That prompt is where its permissions get written.
+1. **Handing a project to a new coordinator thread.** `mr-handy` refuses `project create` from a second thread, so a resumed coordinator in a new thread can't record itself and the project page keeps linking to the old one.
 2. **Status updates versus live facts.** Whether a step's state comes from the status updates threads post, or from T3 and GitHub directly, with the updates only recording which thread and pull request belong to which step.
 3. **What the home page shows.** Beyond the list of projects, whether it also pulls out the steps that need the user, across all projects.
 4. **Threads outside any project.** Ad hoc work, like the log-leak fixes, is most of the thread volume. Whether it shows up as unassigned threads, or stays off the pages.
