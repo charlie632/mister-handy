@@ -12,6 +12,9 @@ catalogs:
     '@effect/platform-node':
       specifier: 4.1.2
       version: 4.1.2
+    '@effect/sql-sqlite-node':
+      specifier: 4.1.2
+      version: 4.1.2
     '@effect/tsgo':
       specifier: 0.67.1
       version: 0.67.1
@@ -77,6 +80,9 @@ importers:
       '@effect/platform-node':
         specifier: 'catalog:'
         version: 4.1.2(effect@4.1.2)(redis@6.3.1)
+      '@mister-handy/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@mister-handy/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -96,6 +102,9 @@ importers:
       '@effect/atom-react':
         specifier: 'catalog:'
         version: 4.1.2(effect@4.1.2)(react@19.3.1)(scheduler@0.28.0)
+      '@mister-handy/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@mister-handy/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -133,6 +142,31 @@ importers:
       vite:
         specifier: 'catalog:'
         version: 8.3.5(@types/node@22.20.5)(jiti@2.7.0)
+
+  packages/db:
+    dependencies:
+      '@effect/sql-sqlite-node':
+        specifier: 'catalog:'
+        version: 4.1.2(effect@4.1.2)
+      '@mister-handy/domain':
+        specifier: workspace:*
+        version: link:../domain
+      effect:
+        specifier: 'catalog:'
+        version: 4.1.2
+    devDependencies:
+      '@effect/vitest':
+        specifier: 'catalog:'
+        version: 4.1.2(effect@4.1.2)(vitest@5.1.0(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(jiti@2.7.0)))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 22.20.5
+      vite:
+        specifier: 'catalog:'
+        version: 8.3.5(@types/node@22.20.5)(jiti@2.7.0)
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.0(@types/node@22.20.5)(vite@8.3.5(@types/node@22.20.5)(jiti@2.7.0))
 
   packages/domain:
     dependencies:
@@ -235,6 +269,11 @@ packages:
     peerDependencies:
       effect: ^4.1.2
       redis: '>=5.1.0 <7.0.0'
+
+  '@effect/sql-sqlite-node@4.1.2':
+    resolution: {integrity: sha512-fTmI8Ol1Lf8rGITtdIW285nuT9G46ETOPZ48CxlZ7vkfWDYgipYnH0dILxPGcZ6f/BMLeybmLRKKBcRWStShfQ==}
+    peerDependencies:
+      effect: ^4.1.2
 
   '@effect/tsgo-darwin-arm64@0.67.1':
     resolution: {integrity: sha512-q10xwD2s+KvZEwbY5OHGSmfAp9Is4e/a7PS4NiUVnvGnPOCbjOMEbVrYjOImy5uawPAa1CVA+55qxCv4ctaw4g==}
@@ -1372,6 +1411,10 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
+
+  '@effect/sql-sqlite-node@4.1.2(effect@4.1.2)':
+    dependencies:
+      effect: 4.1.2
 
   '@effect/tsgo-darwin-arm64@0.67.1':
     optional: true

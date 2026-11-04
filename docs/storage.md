@@ -2,7 +2,7 @@
 
 Status: draft, 2026-11-04.
 
-One SQLite database, `~/.mr-handy/mister-handy.db`, holds everything the pages show, for every project. Free-form text lives elsewhere. Each project's wiki and the prose of its plan are Markdown files under `~/.mr-handy/<project>/`. The pages never read those files, so anything a page shows has to be in the database.
+One SQLite database, `~/.mr-handy/mister-handy.db` unless `MR_HANDY_DB` names another file, holds everything the pages show, for every project. Free-form text lives elsewhere. Each project's wiki and the prose of its plan are Markdown files under `~/.mr-handy/<project>/`. The pages never read those files, so anything a page shows has to be in the database.
 
 ## What is stored and what is computed
 
@@ -12,7 +12,7 @@ The database stores three kinds of row:
 - **Links.** Which thread and which pull requests belong to which step. They arrive as status updates from the command line tool, because nothing else knows them.
 - **Observations.** The last thing seen in T3, GitHub or Jira about a thread, a pull request or a ticket, with the time it was seen.
 
-Step state is never stored. The domain package computes it from these rows at read time, with one function that every page uses. Storing it would create a second copy that goes stale the moment a thread dies without reporting. That's the case the T3 restarts in the user's history keep producing.
+Step state is never stored. The domain package computes it from these rows at read time, with one function (`deriveStepNodes`) that every page uses. Storing it would create a second copy that goes stale the moment a thread dies without reporting. That's the case the T3 restarts in the user's history keep producing.
 
 ## Who writes what
 
@@ -28,101 +28,7 @@ Two writers do share a table. The web app and the command line tool both write `
 
 ## Schema
 
-```sql
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
-
-CREATE TABLE project (
-  slug                   TEXT PRIMARY KEY,
-  name                   TEXT NOT NULL,
-  state                  TEXT NOT NULL CHECK (state IN ('Planning','Active','Paused','Done')),
-  epic_key               TEXT,
-  coordinator_env_id     TEXT,
-  coordinator_thread_id  TEXT,
-  created_at             TEXT NOT NULL,
-  CHECK ((coordinator_env_id IS NULL) = (coordinator_thread_id IS NULL))
-);
-
-CREATE TABLE project_reference (
-  project_slug  TEXT NOT NULL REFERENCES project(slug),
-  label         TEXT NOT NULL,
-  url           TEXT NOT NULL,
-  PRIMARY KEY (project_slug, url)
-);
-
-CREATE TABLE plan_step (
-  project_slug  TEXT NOT NULL REFERENCES project(slug),
-  step_id       TEXT NOT NULL,
-  title         TEXT NOT NULL,
-  ticket_key    TEXT UNIQUE,
-  position      INTEGER NOT NULL,
-  closed_as     TEXT CHECK (closed_as IN ('Done','Dropped')),
-  closed_at     TEXT,
-  PRIMARY KEY (project_slug, step_id),
-  CHECK ((closed_as IS NULL) = (closed_at IS NULL))
-);
-
-CREATE TABLE dependency (
-  project_slug  TEXT NOT NULL,
-  before_step   TEXT NOT NULL,
-  after_step    TEXT NOT NULL,
-  PRIMARY KEY (project_slug, before_step, after_step),
-  FOREIGN KEY (project_slug, before_step) REFERENCES plan_step(project_slug, step_id),
-  FOREIGN KEY (project_slug, after_step)  REFERENCES plan_step(project_slug, step_id),
-  CHECK (before_step <> after_step)
-);
-
-CREATE TABLE step_thread (
-  project_slug    TEXT NOT NULL,
-  step_id         TEXT NOT NULL,
-  env_id          TEXT NOT NULL,
-  thread_id       TEXT NOT NULL,
-  started_at      TEXT NOT NULL,
-  PRIMARY KEY (env_id, thread_id),
-  FOREIGN KEY (project_slug, step_id) REFERENCES plan_step(project_slug, step_id)
-);
-
-CREATE TABLE step_pull_request (
-  project_slug  TEXT NOT NULL,
-  step_id       TEXT NOT NULL,
-  url           TEXT NOT NULL PRIMARY KEY,
-  opened_at     TEXT NOT NULL,
-  FOREIGN KEY (project_slug, step_id) REFERENCES plan_step(project_slug, step_id)
-);
-
-CREATE TABLE status_update (
-  id            TEXT PRIMARY KEY,
-  project_slug  TEXT NOT NULL REFERENCES project(slug),
-  step_id       TEXT,
-  kind          TEXT NOT NULL,
-  body          TEXT NOT NULL,
-  env_id        TEXT,
-  thread_id     TEXT,
-  received_at   TEXT NOT NULL
-);
-
-CREATE TABLE thread_observation (
-  env_id        TEXT NOT NULL,
-  thread_id     TEXT NOT NULL,
-  state         TEXT NOT NULL CHECK (state IN ('Running','Waiting','Idle','Failed','Settled','Missing')),
-  title         TEXT,
-  observed_at   TEXT NOT NULL,
-  PRIMARY KEY (env_id, thread_id)
-);
-
-CREATE TABLE pull_request_observation (
-  url           TEXT PRIMARY KEY,
-  state         TEXT NOT NULL CHECK (state IN ('Draft','Open','Merged','Closed')),
-  checks        TEXT CHECK (checks IN ('Pending','Passing','Failing')),
-  observed_at   TEXT NOT NULL
-);
-
-CREATE TABLE ticket_observation (
-  ticket_key    TEXT PRIMARY KEY,
-  jira_status   TEXT NOT NULL,
-  observed_at   TEXT NOT NULL
-);
-```
+The tables live in [`packages/db/src/schema.sql`](../packages/db/src/schema.sql), the one copy that `mr-handy db init` applies. Every statement there is `CREATE TABLE IF NOT EXISTS`, so running init again changes nothing. The two pragmas are per connection rather than part of the file: WAL mode is set when a connection opens, and `mr-handy db load` turns on `foreign_keys` before it runs a script.
 
 Notes on the shape:
 

@@ -1,6 +1,15 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Exit, Schema } from "effect"
-import { EnvironmentId, PlanStep, ThreadId, TicketKey, threadDeepLink } from "./index.ts"
+import {
+  deriveStepNodes,
+  EnvironmentId,
+  PlanStep,
+  PlanStepId,
+  type StepThread,
+  ThreadId,
+  TicketKey,
+  threadDeepLink
+} from "./index.ts"
 
 describe("PlanStep", () => {
   it.effect("decodes and encodes back to the same input", () =>
@@ -31,5 +40,42 @@ describe("threadDeepLink", () => {
       threadId: ThreadId.make("thread:delegated-task:command%3Amcp%3Ab12b")
     })
     expect(link).toBe("t3code://threads/env-1/thread%3Adelegated-task%3Acommand%253Amcp%253Ab12b")
+  })
+})
+
+describe("deriveStepNodes", () => {
+  const first = PlanStepId.make("first")
+  const second = PlanStepId.make("second")
+  const thread = (startedAt: string, state: StepThread["state"]): StepThread => ({
+    stepId: second,
+    environmentId: EnvironmentId.make("env-1"),
+    threadId: ThreadId.make(`t-${startedAt}`),
+    startedAt,
+    state,
+    title: null
+  })
+  const derive = (threads: ReadonlyArray<StepThread>) =>
+    deriveStepNodes({
+      steps: [
+        { id: first, title: "First", ticket: null, dependsOn: [] },
+        { id: second, title: "Second", ticket: null, dependsOn: [first] }
+      ],
+      threads,
+      pullRequests: [],
+      tickets: []
+    })
+
+  it("reads the newest step thread and flags work that started before its dependency finished", () => {
+    const [, node] = derive([thread("2026-11-04T10:00:00Z", "Running"), thread("2026-11-04T12:00:00Z", "Failed")])
+    expect(node?.state).toBe("NeedsYou")
+    expect(node?.earlyStart).toBe(true)
+    expect(node?.threads.map((t) => t.state)).toEqual(["Failed", "Running"])
+  })
+
+  it("falls back to the dependencies when the newest thread is settled", () => {
+    const [firstNode, node] = derive([thread("2026-11-04T12:00:00Z", "Settled")])
+    expect(firstNode?.state).toBe("Ready")
+    expect(node?.state).toBe("Blocked")
+    expect(node?.earlyStart).toBe(false)
   })
 })

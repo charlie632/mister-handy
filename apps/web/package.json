@@ -6,10 +6,12 @@
     "typecheck": "effect-tsgo tsc -p .",
     "build": "vite build",
     "dev": "vite dev --host localhost --port 3000",
-    "preview": "vite preview --host localhost --port 3000"
+    "preview": "vite preview --host localhost --port 3000",
+    "serve": "vite preview --host 127.0.0.1 --port 3000 --strictPort"
   },
   "dependencies": {
     "@effect/atom-react": "catalog:",
+    "@mister-handy/db": "workspace:*",
     "@mister-handy/domain": "workspace:*",
     "@tanstack/react-router": "catalog:",
     "@tanstack/react-start": "catalog:",

@@ -36,33 +36,68 @@ export const StepState = Schema.Literals([
 ])
 export type StepState = typeof StepState.Type
 
-export const ThreadState = Schema.Literals(["Running", "Waiting", "Idle", "Failed", "Settled"])
+export const ThreadState = Schema.Literals(["Running", "Waiting", "Idle", "Failed", "Settled", "Missing"])
 export type ThreadState = typeof ThreadState.Type
 
 export const PullRequestState = Schema.Literals(["Draft", "Open", "Merged", "Closed"])
 export type PullRequestState = typeof PullRequestState.Type
 
+export const ClosedAs = Schema.Literals(["Done", "Dropped"])
+export type ClosedAs = typeof ClosedAs.Type
+
 export const PlanStep = Schema.Struct({
   id: PlanStepId,
   title: Schema.NonEmptyString,
-  ticket: TicketKey,
-  dependsOn: Schema.Array(PlanStepId)
+  ticket: Schema.NullOr(TicketKey),
+  dependsOn: Schema.Array(PlanStepId),
+  closedAs: Schema.optionalKey(ClosedAs)
 })
 export type PlanStep = typeof PlanStep.Type
-
-export const Project = Schema.Struct({
-  slug: ProjectSlug,
-  name: Schema.NonEmptyString,
-  state: ProjectState,
-  steps: Schema.Array(PlanStep)
-})
-export type Project = typeof Project.Type
 
 export const ThreadRef = Schema.Struct({
   environmentId: EnvironmentId,
   threadId: ThreadId
 })
 export type ThreadRef = typeof ThreadRef.Type
+
+export const ProjectReference = Schema.Struct({
+  label: Schema.NonEmptyString,
+  url: Schema.NonEmptyString
+})
+export type ProjectReference = typeof ProjectReference.Type
+
+export const Project = Schema.Struct({
+  slug: ProjectSlug,
+  name: Schema.NonEmptyString,
+  state: ProjectState,
+  epic: Schema.NullOr(TicketKey),
+  coordinator: Schema.NullOr(ThreadRef),
+  references: Schema.Array(ProjectReference)
+})
+export type Project = typeof Project.Type
+
+export const StepThread = Schema.Struct({
+  stepId: PlanStepId,
+  environmentId: EnvironmentId,
+  threadId: ThreadId,
+  startedAt: Schema.NonEmptyString,
+  state: Schema.NullOr(ThreadState),
+  title: Schema.NullOr(Schema.String)
+})
+export type StepThread = typeof StepThread.Type
+
+export const StepPullRequest = Schema.Struct({
+  stepId: PlanStepId,
+  url: Schema.NonEmptyString,
+  state: Schema.NullOr(PullRequestState)
+})
+export type StepPullRequest = typeof StepPullRequest.Type
+
+export const TicketObservation = Schema.Struct({
+  ticket: TicketKey,
+  jiraStatus: Schema.NonEmptyString
+})
+export type TicketObservation = typeof TicketObservation.Type
 
 export const StatusUpdate = Schema.TaggedUnion({
   StepStarted: { project: ProjectSlug, stepId: PlanStepId, thread: ThreadRef },
@@ -72,3 +107,81 @@ export type StatusUpdate = typeof StatusUpdate.Type
 
 export const threadDeepLink = (ref: ThreadRef): string =>
   `t3code://threads/${encodeURIComponent(ref.environmentId)}/${encodeURIComponent(ref.threadId)}`
+
+export interface StepNode {
+  readonly step: PlanStep
+  readonly state: StepState
+  readonly drift: boolean
+  readonly earlyStart: boolean
+  /** Newest first. */
+  readonly threads: ReadonlyArray<StepThread>
+  readonly pullRequests: ReadonlyArray<StepPullRequest>
+  readonly jiraStatus: string | null
+}
+
+export interface ProjectRows {
+  readonly steps: ReadonlyArray<PlanStep>
+  readonly threads: ReadonlyArray<StepThread>
+  readonly pullRequests: ReadonlyArray<StepPullRequest>
+  readonly tickets: ReadonlyArray<TicketObservation>
+}
+
+export const isFinished = (state: StepState): boolean => state === "Merged" || state === "Done"
+
+const startedStates: ReadonlySet<StepState> = new Set(["Working", "NeedsYou", "InReview"])
+
+/** Rules 1 to 5 of the precedence in docs/storage.md: the ones that ignore dependencies. */
+const ownState = (
+  step: PlanStep,
+  newestThread: StepThread | undefined,
+  pullRequests: ReadonlyArray<StepPullRequest>
+): StepState | undefined => {
+  if (step.closedAs !== undefined) return step.closedAs
+  if (pullRequests.length > 0 && pullRequests.every((pr) => pr.state === "Merged")) return "Merged"
+  if (newestThread?.state === "Running") return "Working"
+  if (pullRequests.some((pr) => pr.state === "Open" || pr.state === "Draft")) return "InReview"
+  switch (newestThread?.state) {
+    case "Waiting":
+    case "Idle":
+    case "Failed":
+    case "Missing":
+      return "NeedsYou"
+  }
+  return undefined
+}
+
+export const deriveStepNodes = (rows: ProjectRows): ReadonlyArray<StepNode> => {
+  const byId = new Map(rows.steps.map((step) => [step.id, step]))
+  const threadsOf = (id: PlanStepId) =>
+    rows.threads.filter((t) => t.stepId === id).toSorted((a, b) => b.startedAt.localeCompare(a.startedAt))
+  const pullRequestsOf = (id: PlanStepId) => rows.pullRequests.filter((pr) => pr.stepId === id)
+  const jiraStatus = new Map(rows.tickets.map((t) => [t.ticket, t.jiraStatus]))
+
+  const states = new Map<PlanStepId, StepState>()
+  const stateOf = (id: PlanStepId): StepState => {
+    const known = states.get(id)
+    if (known !== undefined) return known
+    const step = byId.get(id)
+    if (step === undefined) return "Blocked"
+    // Seeded before recursing so a dependency cycle in bad data ends as Blocked instead of looping.
+    states.set(id, "Blocked")
+    const state = ownState(step, threadsOf(id)[0], pullRequestsOf(id)) ??
+      (step.dependsOn.every((dep) => isFinished(stateOf(dep))) ? "Ready" : "Blocked")
+    states.set(id, state)
+    return state
+  }
+
+  return rows.steps.map((step) => {
+    const state = stateOf(step.id)
+    const jira = step.ticket === null ? null : jiraStatus.get(step.ticket) ?? null
+    return {
+      step,
+      state,
+      drift: jira !== null && (jira === "Done") !== isFinished(state),
+      earlyStart: startedStates.has(state) && !step.dependsOn.every((dep) => isFinished(stateOf(dep))),
+      threads: threadsOf(step.id),
+      pullRequests: pullRequestsOf(step.id),
+      jiraStatus: jira
+    }
+  })
+}
