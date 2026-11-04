@@ -11,7 +11,7 @@ describe("PlanStep", () => {
         ticket: "CHASE-2147",
         dependsOn: ["s1"]
       }
-      const step = yield* Schema.decodeUnknownEffect(PlanStep)(input)
+      const step = yield* Schema.decodeEffect(PlanStep)(input)
       expect(step.ticket).toBe("CHASE-2147")
       expect(yield* Schema.encodeEffect(PlanStep)(step)).toEqual(input)
     }))
