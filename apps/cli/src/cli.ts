@@ -24,6 +24,7 @@ import {
 } from "@mister-handy/domain"
 import { Config, Console, Data, Effect, FileSystem, Match, Option, Runtime, Schema } from "effect"
 import { Argument, CliError, Command, Flag } from "effect/cli"
+import { ChildProcess, ChildProcessSpawner } from "effect/process"
 import { fileURLToPath } from "node:url"
 
 const localEnvironmentId = Effect.gen(function*() {
@@ -288,7 +289,7 @@ const db = Command.make("db").pipe(
   Command.withSubcommands([init, load])
 )
 
-// Three levels up from both src/cli.ts and the bundled dist/bin.js.
+// Relative paths resolve the same from src/cli.ts and from the bundled dist/bin.js.
 const coordinatorSkill = fileURLToPath(new URL("../../../skills/coordinator", import.meta.url))
 
 const claudeSkills = Config.String("CLAUDE_CONFIG_DIR").pipe(
@@ -327,9 +328,43 @@ const skill = Command.make("skill").pipe(
   Command.withSubcommands([skillInstall])
 )
 
+const webApp = fileURLToPath(new URL("../../web", import.meta.url))
+const appPort = 3000
+// 443 on this machine already serves T3 Code.
+const tailnetPort = 8300
+
+const run = Effect.fnUntraced(function*(command: string, args: ReadonlyArray<string>, cwd?: string) {
+  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
+  const exitCode = yield* spawner.exitCode(
+    ChildProcess.make(command, args, { cwd, stdin: "inherit", stdout: "inherit", stderr: "inherit" })
+  )
+  if (exitCode !== 0) {
+    return yield* new CliError.UserError({ cause: null, userMessage: `${command} exited with code ${exitCode}.` })
+  }
+})
+
+const serve = Command.make(
+  "serve",
+  { tailscale: Flag.Boolean("tailscale").pipe(Flag.withDefault(false), Flag.withDescription(`Also serve it on your tailnet at port ${tailnetPort}`)) },
+  Effect.fnUntraced(function*({ tailscale }) {
+    const fs = yield* FileSystem.FileSystem
+    if (!(yield* fs.exists(`${webApp}/dist/server/server.js`))) {
+      return yield* new CliError.UserError({ cause: null, userMessage: "The web app isn't built. Run pnpm build first." })
+    }
+    if (tailscale) {
+      yield* run("tailscale", ["serve", "--bg", `--https=${tailnetPort}`, `http://127.0.0.1:${appPort}`])
+    }
+    yield* run(
+      `${webApp}/node_modules/.bin/vite`,
+      ["preview", "--host", "127.0.0.1", "--port", String(appPort), "--strictPort"],
+      webApp
+    )
+  })
+).pipe(Command.withDescription(`Run the built web app on http://127.0.0.1:${appPort}`))
+
 const mrHandy = Command.make("mr-handy").pipe(
   Command.withDescription("Record a project's plan and progress in Mister Handy"),
-  Command.withSubcommands([project, stepCommand, dependency, status, db, skill])
+  Command.withSubcommands([project, stepCommand, dependency, status, db, skill, serve])
 )
 
 export const cli = (args: ReadonlyArray<string>) =>

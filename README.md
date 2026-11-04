@@ -83,14 +83,13 @@ In a new T3 thread, `/coordinator <what the project should achieve>` starts a ne
 
 ## Serving it on the tailnet
 
-The pages go out over Tailscale, so only your own devices reach them. Build once, run the built app on localhost, and put `tailscale serve` in front of it for HTTPS. Port 443 on this machine already serves T3 Code, so Mister Handy uses 8300.
+The pages go out over Tailscale, so only your own devices reach them. Port 443 on this machine already serves T3 Code, so Mister Handy uses 8300.
 
 ```sh
 pnpm build
-pnpm serve                                                   # built app on http://127.0.0.1:3000
-tailscale serve --bg --https=8300 http://127.0.0.1:3000      # https://<machine>.<tailnet>.ts.net:8300
-tailscale serve status                                       # shows the URL
-tailscale serve --https=8300 off                             # stop serving
+mr-handy serve                                               # built app on http://127.0.0.1:3000
+mr-handy serve --tailscale                                   # also https://<machine>.<tailnet>.ts.net:8300
+tailscale serve --https=8300 off                             # stop serving on the tailnet
 ```
 
-`tailscale serve --bg` survives a reboot and `pnpm serve` doesn't, so after a reboot only the app needs restarting. `pnpm dev` works behind the same proxy. Vite rejects unknown hosts, so `apps/web/vite.config.ts` allows `*.ts.net` in dev and preview.
+`pnpm serve` runs `mr-handy serve`. `--tailscale` runs `tailscale serve --bg --https=8300` before starting the app, and rerunning it changes nothing. `tailscale serve --bg` survives a reboot and `mr-handy serve` doesn't, so after a reboot only the app needs restarting. `pnpm dev` works behind the same proxy. Vite rejects unknown hosts, so `apps/web/vite.config.ts` allows `*.ts.net` in dev and preview.
