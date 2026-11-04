@@ -8,7 +8,6 @@ describe("PlanStep", () => {
       const input = {
         id: "s2",
         title: "Show the step graph",
-        kind: "TracerBullet",
         ticket: "CHASE-2147",
         dependsOn: ["s1"]
       }

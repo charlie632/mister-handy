@@ -54,7 +54,6 @@ CREATE TABLE plan_step (
   project_slug  TEXT NOT NULL REFERENCES project(slug),
   step_id       TEXT NOT NULL,
   title         TEXT NOT NULL,
-  kind          TEXT NOT NULL CHECK (kind IN ('TracerBullet','BlockerStep')),
   ticket_key    TEXT UNIQUE,
   position      INTEGER NOT NULL,
   closed_as     TEXT CHECK (closed_as IN ('Done','Dropped')),

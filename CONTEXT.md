@@ -31,16 +31,8 @@ The project's plan file, and the source of truth for which steps exist and what 
 _Avoid_: Spec, RFC, design doc, Jira epic
 
 **Plan step**:
-One step of a plan. It has exactly one ticket and is either a tracer bullet or a blocker step.
+One step of a plan. It has exactly one ticket. The plan alone decides what a step is and what it depends on.
 _Avoid_: Phase, milestone, unit, task
-
-**Tracer bullet**:
-A plan step that's a thin slice through the whole system, which the user can see working on its own. It's not a horizontal layer.
-_Avoid_: Layer, chunk, subtask
-
-**Blocker step**:
-A plan step that prepares something later steps need, usually infrastructure, and that can't be seen working on its own. It's found while the plan is being written, not discovered mid-project.
-_Avoid_: Infra ticket, enabler, prerequisite
 
 **Dependency**:
 A directed "must finish first" relation between two plan steps, written in the plan. The step that must finish first points at the step that waits on it.

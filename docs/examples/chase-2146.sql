@@ -11,16 +11,16 @@ INSERT INTO project_reference VALUES
   ('chase-2146', 'Jira epic CHASE-2146', 'https://cerby.atlassian.net/browse/CHASE-2146');
 
 INSERT INTO plan_step VALUES
-  ('chase-2146', 'route-readers',      'Route readers that bypass the applications aggregate through it',            'BlockerStep',  'CHASE-2148', 1, NULL, NULL),
-  ('chase-2146', 'require-viewer',     'Make a viewer argument required on every application read',                   'BlockerStep',  'CHASE-2149', 2, NULL, NULL),
-  ('chase-2146', 'unique-name',        'Make applications.name unique in the database',                               'BlockerStep',  'CHASE-2147', 3, NULL, NULL),
-  ('chase-2146', 'access-table',       'Add the application_access table',                                            'BlockerStep',  'CHASE-2157', 4, NULL, NULL),
-  ('chase-2146', 'rule-reads-access',  'Make the application visibility rule read application_access',               'BlockerStep',  'CHASE-2158', 5, NULL, NULL),
-  ('chase-2146', 'fail-closed-delete', 'Deleting a workspace makes an app shared only with it global',               'BlockerStep',  'CHASE-2162', 6, 'Done', '2026-11-04T15:07:59Z'),
-  ('chase-2146', 'cache-by-viewer',    'Key the search DocumentBuilder application cache by viewer',                  'BlockerStep',  'CHASE-2153', 7, NULL, NULL),
-  ('chase-2146', 'internal-api-reads', 'Move ApplicationInternalApi reads to ApplicationQueries',                     'BlockerStep',  'CHASE-2154', 8, NULL, NULL),
-  ('chase-2146', 'draft-access-rows',  'Write application_access rows when a workspace creates a draft application', 'TracerBullet', 'CHASE-2159', 9, NULL, NULL),
-  ('chase-2146', 'promote-or-share',   'Promote or share a workspace-scoped application',                             'TracerBullet', 'CHASE-2160', 10, NULL, NULL);
+  ('chase-2146', 'route-readers',      'Route readers that bypass the applications aggregate through it',            'CHASE-2148', 1, NULL, NULL),
+  ('chase-2146', 'require-viewer',     'Make a viewer argument required on every application read',                   'CHASE-2149', 2, NULL, NULL),
+  ('chase-2146', 'unique-name',        'Make applications.name unique in the database',                               'CHASE-2147', 3, NULL, NULL),
+  ('chase-2146', 'access-table',       'Add the application_access table',                                            'CHASE-2157', 4, NULL, NULL),
+  ('chase-2146', 'rule-reads-access',  'Make the application visibility rule read application_access',               'CHASE-2158', 5, NULL, NULL),
+  ('chase-2146', 'fail-closed-delete', 'Deleting a workspace makes an app shared only with it global',               'CHASE-2162', 6, 'Done', '2026-11-04T15:07:59Z'),
+  ('chase-2146', 'cache-by-viewer',    'Key the search DocumentBuilder application cache by viewer',                  'CHASE-2153', 7, NULL, NULL),
+  ('chase-2146', 'internal-api-reads', 'Move ApplicationInternalApi reads to ApplicationQueries',                     'CHASE-2154', 8, NULL, NULL),
+  ('chase-2146', 'draft-access-rows',  'Write application_access rows when a workspace creates a draft application', 'CHASE-2159', 9, NULL, NULL),
+  ('chase-2146', 'promote-or-share',   'Promote or share a workspace-scoped application',                             'CHASE-2160', 10, NULL, NULL);
 
 INSERT INTO dependency VALUES
   ('chase-2146', 'route-readers',     'require-viewer'),     -- stated: "start CHASE-2149 stacked on top of CHASE-2148"

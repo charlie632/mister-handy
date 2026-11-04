@@ -42,13 +42,9 @@ export type ThreadState = typeof ThreadState.Type
 export const PullRequestState = Schema.Literals(["Draft", "Open", "Merged", "Closed"])
 export type PullRequestState = typeof PullRequestState.Type
 
-export const PlanStepKind = Schema.Literals(["TracerBullet", "BlockerStep"])
-export type PlanStepKind = typeof PlanStepKind.Type
-
 export const PlanStep = Schema.Struct({
   id: PlanStepId,
   title: Schema.NonEmptyString,
-  kind: PlanStepKind,
   ticket: TicketKey,
   dependsOn: Schema.Array(PlanStepId)
 })

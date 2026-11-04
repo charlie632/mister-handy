@@ -8,8 +8,8 @@ const fixture = [
     name: "Chase onboarding",
     state: "Active",
     steps: [
-      { id: "s1", title: "Store plans", kind: "BlockerStep", ticket: "CHASE-2146", dependsOn: [] },
-      { id: "s2", title: "Show the step graph", kind: "TracerBullet", ticket: "CHASE-2147", dependsOn: ["s1"] }
+      { id: "s1", title: "Store plans", ticket: "CHASE-2146", dependsOn: [] },
+      { id: "s2", title: "Show the step graph", ticket: "CHASE-2147", dependsOn: ["s1"] }
     ]
   },
   {
