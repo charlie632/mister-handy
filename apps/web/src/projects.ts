@@ -19,10 +19,37 @@ const postCloseStep = createServerFn({ method: "POST" })
 
 export const projectsAtom = Atom.make(Effect.tryPromise(() => getProjects()))
 
-export const projectAtom = Atom.family((slug: ProjectSlug) => Atom.make(Effect.tryPromise(() => getProject({ data: slug }))))
+const projectSourceAtom = Atom.family((slug: ProjectSlug) => Atom.make(Effect.tryPromise(() => getProject({ data: slug }))))
+
+const isVisible = () => typeof document !== "undefined" && document.visibilityState === "visible"
+
+const visibleAtom = Atom.make((get) => {
+  if (typeof document === "undefined") return false
+  const onChange = () => get.setSelf(isVisible())
+  document.addEventListener("visibilitychange", onChange)
+  get.addFinalizer(() => document.removeEventListener("visibilitychange", onChange))
+  return isVisible()
+})
+
+// Refetches the open project 5 seconds after each result while the tab is visible, and
+// right away when the tab comes back. Stops once no page reads it.
+export const projectAtom = Atom.family((slug: ProjectSlug) => {
+  const source = projectSourceAtom(slug)
+  let wasVisible = true
+  return Atom.transform(source, (get) => {
+    const visible = get(visibleAtom)
+    const delay = visible && !wasVisible ? 0 : 5000
+    wasVisible = visible
+    if (visible) {
+      const timer = setTimeout(() => get.refresh(source), delay)
+      get.addFinalizer(() => clearTimeout(timer))
+    }
+    return get(source)
+  }, { initialValueTarget: source })
+})
 
 export const closeStepAtom = Atom.fn((input: CloseStep, get) =>
   Effect.tryPromise(() => postCloseStep({ data: input })).pipe(
-    Effect.tap(() => Effect.sync(() => get.refresh(projectAtom(input.project))))
+    Effect.tap(() => Effect.sync(() => get.refresh(projectSourceAtom(input.project))))
   )
 )
