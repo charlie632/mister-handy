@@ -97,7 +97,7 @@ A short message one thread posts to the thread above it about a step, such as "s
 _Avoid_: Report, ping, event
 
 **Thread state**:
-One of **Running**, **Waiting** (it asked the user something), **Idle** (it finished its turn), **Failed** or **Settled** (the user marked it finished).
+One of **Running**, **Waiting** (it asked the user something), **Idle** (it finished its turn), **Failed**, **Settled** (the user marked it finished) or **Missing** (T3 no longer knows it).
 _Avoid_: Status
 
 **Pull request**:
@@ -117,3 +117,9 @@ _Avoid_: Dashboard, My Work, overview, landing page
 **Project page**:
 The page for one project. It shows the project's step graph next to its plan and its epic.
 _Avoid_: Board, project view, graph page
+
+## Storage
+
+**Observation**:
+The last thing seen in T3, GitHub or Jira about one thread, pull request or ticket, with the time it was seen. Observations feed step state but are never decided by Mister Handy.
+_Avoid_: Snapshot, cache, sync state
