@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 120,
+  "semi": false,
+  "trailingComma": "none",
+  "ignorePatterns": ["apps/web/src/routeTree.gen.ts", "tools/oxlint/anti-slop/**", "pnpm-lock.yaml"]
+}
