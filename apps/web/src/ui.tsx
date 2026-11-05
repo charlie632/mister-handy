@@ -28,7 +28,7 @@ export const StatePill = ({ state }: { state: StepState }) => (
 
 export const Nav = ({ project }: { project?: { slug: ProjectSlug; name: string } }) => (
   <nav className="nav">
-    <span className="brand">mr-handy</span>
+    <Link to="/" className="brand"><img src="/logo.png" alt="" width={24} height={23} />mr-handy</Link>
     <Link to="/" activeOptions={{ exact: true }} activeProps={{ className: "on" }}>Home</Link>
     {project && (
       <>

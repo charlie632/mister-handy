@@ -49,7 +49,8 @@ ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: col
 .nav a { color: inherit; padding: 4px 10px; border-radius: 999px; border: 1px solid transparent; }
 .nav a:hover { text-decoration: none; color: var(--foreground); }
 .nav a.on { border-color: var(--border); color: var(--foreground); background: var(--card); }
-.brand { font: 600 12px var(--font-mono); margin-right: 8px; color: var(--foreground); }
+.brand { display: inline-flex; align-items: center; gap: 6px; font: 600 12px var(--font-mono); margin-right: 8px; color: var(--foreground); padding: 0 !important; border: 0 !important; background: none !important; }
+.brand img { display: block; }
 
 .row { display: flex; gap: 12px; flex-wrap: wrap; }
 .row > .box { flex: 1 1 260px; }
