@@ -27,10 +27,11 @@ import { Argument, CliError, Command, Flag } from "effect/cli"
 import { ChildProcess, ChildProcessSpawner } from "effect/process"
 import { fileURLToPath } from "node:url"
 
-const localEnvironmentId = Effect.gen(function*() {
+const localEnvironmentId = Effect.gen(function* () {
   const home = yield* Config.String("T3CODE_HOME")
   const fs = yield* FileSystem.FileSystem
   const raw = yield* fs.readFileString(`${home}/userdata/environment-id`)
+
   return yield* Schema.decodeEffect(EnvironmentId)(raw.trim())
 })
 
@@ -40,18 +41,20 @@ const poster = Effect.all({ environmentId: localEnvironmentId, threadId: t3Threa
   Effect.orElseSucceed(() => null)
 )
 
-const describe = Match.type<PlanChange>().pipe(Match.tagsExhaustive({
-  StepAdded: ({ step, position }) => `Added step ${step} at position ${position}.`,
-  StepRewritten: ({ step }) => `Rewrote step ${step}.`,
-  StepHeld: ({ step, reason }) => `Held step ${step} on: ${reason}`,
-  StepReleased: ({ step }) => `Released step ${step}.`,
-  StepClosed: ({ step, closedAs, ticket }) =>
-    closedAs === "Done"
-      ? `Marked step ${step} Done.`
-      : `Dropped step ${step}.${ticket === null ? "" : ` Close its ticket ${ticket} in Jira.`}`,
-  DependencyAdded: ({ dependency }) => `Added dependency: ${dependency.after} depends on ${dependency.before}.`,
-  DependencyRemoved: ({ dependency }) => `Removed dependency: ${dependency.after} depends on ${dependency.before}.`
-}))
+const describe = Match.type<PlanChange>().pipe(
+  Match.tagsExhaustive({
+    StepAdded: ({ step, position }) => `Added step ${step} at position ${position}.`,
+    StepRewritten: ({ step }) => `Rewrote step ${step}.`,
+    StepHeld: ({ step, reason }) => `Held step ${step} on: ${reason}`,
+    StepReleased: ({ step }) => `Released step ${step}.`,
+    StepClosed: ({ step, closedAs, ticket }) =>
+      closedAs === "Done"
+        ? `Marked step ${step} Done.`
+        : `Dropped step ${step}.${ticket === null ? "" : ` Close its ticket ${ticket} in Jira.`}`,
+    DependencyAdded: ({ dependency }) => `Added dependency: ${dependency.after} depends on ${dependency.before}.`,
+    DependencyRemoved: ({ dependency }) => `Removed dependency: ${dependency.after} depends on ${dependency.before}.`
+  })
+)
 
 const report = (changes: ReadonlyArray<string>) =>
   changes.length === 0 ? Console.log("No change.") : Effect.forEach(changes, (line) => Console.log(line))
@@ -77,14 +80,16 @@ const projectCreate = Command.make(
     environment: Flag.String("environment").pipe(Flag.withSchema(EnvironmentId), Flag.optional),
     thread: Flag.String("thread").pipe(Flag.withSchema(ThreadId), Flag.withFallbackConfig(t3Thread))
   },
-  Effect.fnUntraced(function*({ slug, name, epic, environment, thread }) {
+  Effect.fnUntraced(function* ({ slug, name, epic, environment, thread }) {
     const environmentId = Option.isSome(environment) ? environment.value : yield* localEnvironmentId
+
     const created = yield* createProject({
       slug,
       name,
       epic: Option.getOrNull(epic),
       coordinator: { environmentId, threadId: thread }
     })
+
     yield* report(created ? [`Created project ${slug} in Planning.`] : [])
   })
 ).pipe(Command.withDescription("Create a project in Planning, with the calling thread as its coordinator"))
@@ -92,8 +97,9 @@ const projectCreate = Command.make(
 const projectShow = Command.make(
   "show",
   { slug: Argument.String("slug").pipe(Argument.withSchema(ProjectSlug)) },
-  Effect.fnUntraced(function*({ slug }) {
+  Effect.fnUntraced(function* ({ slug }) {
     const view = yield* readProject(slug)
+
     if (view === null) return yield* new UnknownProject({ project: slug })
     yield* Console.log(JSON.stringify(view, null, 2))
   })
@@ -102,7 +108,7 @@ const projectShow = Command.make(
 const projectList = Command.make(
   "list",
   {},
-  Effect.fnUntraced(function*() {
+  Effect.fnUntraced(function* () {
     for (const { project } of yield* listProjects()) {
       yield* Console.log(`${project.slug}\t${project.state}\t${project.name}`)
     }
@@ -126,17 +132,19 @@ const stepAdd = Command.make(
     after: stepFlag("after").pipe(Flag.optional),
     dependsOn: stepFlag("depends-on").pipe(Flag.atLeast(0))
   },
-  Effect.fnUntraced(function*({ step, title, ticket, after, dependsOn }) {
+  Effect.fnUntraced(function* ({ step, title, ticket, after, dependsOn }) {
     const { project } = yield* stepGroup
     yield* reportPlan(
-      yield* editPlan(PlanEdit.cases.AddStep.make({
-        project,
-        step,
-        title,
-        ticket: Option.getOrNull(ticket),
-        after: Option.getOrNull(after),
-        dependsOn
-      }))
+      yield* editPlan(
+        PlanEdit.cases.AddStep.make({
+          project,
+          step,
+          title,
+          ticket: Option.getOrNull(ticket),
+          after: Option.getOrNull(after),
+          dependsOn
+        })
+      )
     )
   })
 ).pipe(Command.withDescription("Add a step, at the end of the plan unless --after says where"))
@@ -144,24 +152,29 @@ const stepAdd = Command.make(
 const stepRewrite = Command.make(
   "rewrite",
   { step: stepArgument, title: titleFlag.pipe(Flag.optional), ticket: ticketFlag },
-  Effect.fnUntraced(function*({ step, title, ticket }) {
+  Effect.fnUntraced(function* ({ step, title, ticket }) {
     const { project } = yield* stepGroup
+
     if (Option.isNone(title) && Option.isNone(ticket)) {
       return yield* new CliError.UserError({ cause: null, userMessage: "step rewrite needs --title or --ticket." })
     }
+
     yield* reportPlan(
-      yield* editPlan(PlanEdit.cases.RewriteStep.make({
-        project,
-        step,
-        ...(Option.isSome(title) ? { title: title.value } : {}),
-        ...(Option.isSome(ticket) ? { ticket: ticket.value } : {})
-      }))
+      yield* editPlan(
+        PlanEdit.cases.RewriteStep.make({
+          project,
+          step,
+          ...(Option.isSome(title) ? { title: title.value } : {}),
+          ...(Option.isSome(ticket) ? { ticket: ticket.value } : {})
+        })
+      )
     )
   })
 ).pipe(Command.withDescription("Change a step's title or ticket"))
 
 const parsePart = (value: string) => {
   const at = value.indexOf("=")
+
   return at === -1
     ? Option.none()
     : Schema.decodeOption(NewStep)({ id: value.slice(0, at), title: value.slice(at + 1) })
@@ -176,17 +189,22 @@ const stepSplit = Command.make(
       Flag.atLeast(1)
     )
   },
-  Effect.fnUntraced(function*({ step, parts: [first, ...rest] }) {
+  Effect.fnUntraced(function* ({ step, parts: [first, ...rest] }) {
     const { project } = yield* stepGroup
+
     if (first === undefined) return yield* new CliError.MissingOption({ option: "part" })
     yield* reportPlan(yield* editPlan(PlanEdit.cases.SplitStep.make({ project, step, parts: [first, ...rest] })))
   })
-).pipe(Command.withDescription("Split new steps off a step. Each part waits on what it waited on, and blocks what it blocked"))
+).pipe(
+  Command.withDescription(
+    "Split new steps off a step. Each part waits on what it waited on, and blocks what it blocked"
+  )
+)
 
 const stepDrop = Command.make(
   "drop",
   { step: stepArgument },
-  Effect.fnUntraced(function*({ step }) {
+  Effect.fnUntraced(function* ({ step }) {
     const { project } = yield* stepGroup
     yield* reportPlan(yield* editPlan(PlanEdit.cases.DropStep.make({ project, step })))
   })
@@ -201,7 +219,7 @@ const stepHold = Command.make(
       Flag.withDescription("The decision the user has to make, shown on the project page")
     )
   },
-  Effect.fnUntraced(function*({ step, reason }) {
+  Effect.fnUntraced(function* ({ step, reason }) {
     const { project } = yield* stepGroup
     yield* reportPlan(yield* editPlan(PlanEdit.cases.HoldStep.make({ project, step, reason })))
   })
@@ -210,7 +228,7 @@ const stepHold = Command.make(
 const stepRelease = Command.make(
   "release",
   { step: stepArgument },
-  Effect.fnUntraced(function*({ step }) {
+  Effect.fnUntraced(function* ({ step }) {
     const { project } = yield* stepGroup
     yield* reportPlan(yield* editPlan(PlanEdit.cases.ReleaseStep.make({ project, step })))
   })
@@ -229,7 +247,7 @@ const edgeConfig = { step: stepArgument, on: stepFlag("on") }
 const dependencyAdd = Command.make(
   "add",
   edgeConfig,
-  Effect.fnUntraced(function*({ step, on }) {
+  Effect.fnUntraced(function* ({ step, on }) {
     const { project } = yield* dependencyGroup
     yield* reportPlan(yield* editPlan(PlanEdit.cases.AddDependency.make({ project, step, on })))
   })
@@ -238,7 +256,7 @@ const dependencyAdd = Command.make(
 const dependencyRemove = Command.make(
   "remove",
   edgeConfig,
-  Effect.fnUntraced(function*({ step, on }) {
+  Effect.fnUntraced(function* ({ step, on }) {
     const { project } = yield* dependencyGroup
     yield* reportPlan(yield* editPlan(PlanEdit.cases.RemoveDependency.make({ project, step, on })))
   })
@@ -263,14 +281,16 @@ const started = Command.make(
       Flag.optional
     )
   },
-  Effect.fnUntraced(function*({ project, step, environment, thread, title }) {
+  Effect.fnUntraced(function* ({ project, step, environment, thread, title }) {
     const environmentId = Option.isSome(environment) ? environment.value : yield* localEnvironmentId
+
     const update = StatusUpdate.cases.StepStarted.make({
       project,
       stepId: step,
       thread: { environmentId, threadId: thread },
       ...(Option.isSome(title) ? { title: title.value } : {})
     })
+
     const recorded = yield* recordStatusUpdate(update, yield* poster)
     yield* report(recorded ? [`Recorded: step ${step} started in thread ${environmentId}/${thread}.`] : [])
   })
@@ -283,7 +303,7 @@ const pullRequestOpened = Command.make(
     step: stepFlag("step"),
     url: Flag.String("url").pipe(Flag.withSchema(Schema.URLFromString))
   },
-  Effect.fnUntraced(function*({ project, step, url }) {
+  Effect.fnUntraced(function* ({ project, step, url }) {
     const update = StatusUpdate.cases.PullRequestOpened.make({ project, stepId: step, url })
     const recorded = yield* recordStatusUpdate(update, yield* poster)
     yield* report(recorded ? [`Recorded: pull request ${url.href} opened for step ${step}.`] : [])
@@ -299,7 +319,7 @@ const status = Command.make("status").pipe(
 const init = Command.make(
   "init",
   {},
-  Effect.fnUntraced(function*() {
+  Effect.fnUntraced(function* () {
     const filename = yield* databasePath
     yield* applySchema(filename)
     yield* Console.log(`Schema applied to ${filename}`)
@@ -309,7 +329,7 @@ const init = Command.make(
 const load = Command.make(
   "load",
   { script: Argument.FileText("file") },
-  Effect.fnUntraced(function*({ script }) {
+  Effect.fnUntraced(function* ({ script }) {
     const filename = yield* databasePath
     yield* runScript(filename, script)
     yield* Console.log(`Loaded into ${filename}`)
@@ -332,18 +352,21 @@ const claudeSkills = Config.String("CLAUDE_CONFIG_DIR").pipe(
 const skillInstall = Command.make(
   "install",
   {},
-  Effect.fnUntraced(function*() {
+  Effect.fnUntraced(function* () {
     const fs = yield* FileSystem.FileSystem
     const skills = yield* claudeSkills
     const link = `${skills}/coordinator`
     const current = yield* fs.readLink(link).pipe(Effect.option)
+
     if (Option.isSome(current) && current.value === coordinatorSkill) return yield* report([])
+
     if (Option.isNone(current) && (yield* fs.exists(link))) {
       return yield* new CliError.UserError({
         cause: null,
         userMessage: `${link} exists and is not a symlink. Move it away and rerun.`
       })
     }
+
     if (Option.isSome(current)) yield* fs.remove(link)
     yield* fs.makeDirectory(skills, { recursive: true })
     yield* fs.symlink(coordinatorSkill, link)
@@ -353,7 +376,9 @@ const skillInstall = Command.make(
         : `Linked ${link} to ${coordinatorSkill}.`
     ])
   })
-).pipe(Command.withDescription("Symlink the /coordinator skill into $CLAUDE_CONFIG_DIR/skills, by default ~/.claude/skills"))
+).pipe(
+  Command.withDescription("Symlink the /coordinator skill into $CLAUDE_CONFIG_DIR/skills, by default ~/.claude/skills")
+)
 
 const skill = Command.make("skill").pipe(
   Command.withDescription("Install the /coordinator skill for Claude Code"),
@@ -362,14 +387,17 @@ const skill = Command.make("skill").pipe(
 
 const webApp = fileURLToPath(new URL("../../web", import.meta.url))
 const appPort = 3000
+
 // 443 on this machine already serves T3 Code.
 const tailnetPort = 8300
 
-const run = Effect.fnUntraced(function*(command: string, args: ReadonlyArray<string>, cwd?: string) {
+const run = Effect.fnUntraced(function* (command: string, args: ReadonlyArray<string>, cwd?: string) {
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
+
   const exitCode = yield* spawner.exitCode(
     ChildProcess.make(command, args, { cwd, stdin: "inherit", stdout: "inherit", stderr: "inherit" })
   )
+
   if (exitCode !== 0) {
     return yield* new CliError.UserError({ cause: null, userMessage: `${command} exited with code ${exitCode}.` })
   }
@@ -377,15 +405,26 @@ const run = Effect.fnUntraced(function*(command: string, args: ReadonlyArray<str
 
 const serve = Command.make(
   "serve",
-  { tailscale: Flag.Boolean("tailscale").pipe(Flag.withDefault(false), Flag.withDescription(`Also serve it on your tailnet at port ${tailnetPort}`)) },
-  Effect.fnUntraced(function*({ tailscale }) {
+  {
+    tailscale: Flag.Boolean("tailscale").pipe(
+      Flag.withDefault(false),
+      Flag.withDescription(`Also serve it on your tailnet at port ${tailnetPort}`)
+    )
+  },
+  Effect.fnUntraced(function* ({ tailscale }) {
     const fs = yield* FileSystem.FileSystem
+
     if (!(yield* fs.exists(`${webApp}/dist/server/server.js`))) {
-      return yield* new CliError.UserError({ cause: null, userMessage: "The web app isn't built. Run pnpm build first." })
+      return yield* new CliError.UserError({
+        cause: null,
+        userMessage: "The web app isn't built. Run pnpm build first."
+      })
     }
+
     if (tailscale) {
       yield* run("tailscale", ["serve", "--bg", `--https=${tailnetPort}`, `http://127.0.0.1:${appPort}`])
     }
+
     yield* run(
       `${webApp}/node_modules/.bin/vite`,
       ["preview", "--host", "127.0.0.1", "--port", String(appPort), "--strictPort"],
@@ -402,5 +441,6 @@ const mrHandy = Command.make("mr-handy").pipe(
 export const cli = (args: ReadonlyArray<string>) =>
   Command.runWith(mrHandy, { version: "0.0.0" })(args).pipe(
     Effect.catchIf(isRefusal, (refusal) =>
-      Console.error(`Refused: ${refusal.message}`).pipe(Effect.andThen(Effect.fail(new Refused()))))
+      Console.error(`Refused: ${refusal.message}`).pipe(Effect.andThen(Effect.fail(new Refused())))
+    )
   )

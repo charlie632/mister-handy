@@ -23,7 +23,9 @@ const postCloseStep = createServerFn({ method: "POST" })
 
 export const projectsAtom = Atom.make(Effect.tryPromise(() => getProjects()))
 
-const projectSourceAtom = Atom.family((slug: ProjectSlug) => Atom.make(Effect.tryPromise(() => getProject({ data: slug }))))
+const projectSourceAtom = Atom.family((slug: ProjectSlug) =>
+  Atom.make(Effect.tryPromise(() => getProject({ data: slug })))
+)
 
 const isVisible = () => typeof document !== "undefined" && document.visibilityState === "visible"
 
@@ -32,6 +34,7 @@ const visibleAtom = Atom.make((get) => {
   const onChange = () => get.setSelf(isVisible())
   document.addEventListener("visibilitychange", onChange)
   get.addFinalizer(() => document.removeEventListener("visibilitychange", onChange))
+
   return isVisible()
 })
 
@@ -40,16 +43,23 @@ const visibleAtom = Atom.make((get) => {
 export const projectAtom = Atom.family((slug: ProjectSlug) => {
   const source = projectSourceAtom(slug)
   let wasVisible = true
-  return Atom.transform(source, (get) => {
-    const visible = get(visibleAtom)
-    const delay = visible && !wasVisible ? 0 : 5000
-    wasVisible = visible
-    if (visible) {
-      const timer = setTimeout(() => get.refresh(source), delay)
-      get.addFinalizer(() => clearTimeout(timer))
-    }
-    return get(source)
-  }, { initialValueTarget: source })
+
+  return Atom.transform(
+    source,
+    (get) => {
+      const visible = get(visibleAtom)
+      const delay = visible && !wasVisible ? 0 : 5000
+      wasVisible = visible
+
+      if (visible) {
+        const timer = setTimeout(() => get.refresh(source), delay)
+        get.addFinalizer(() => clearTimeout(timer))
+      }
+
+      return get(source)
+    },
+    { initialValueTarget: source }
+  )
 })
 
 /** Read once each time the panel opens it; the plan changes rarely enough not to poll. */

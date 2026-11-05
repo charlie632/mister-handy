@@ -24,15 +24,23 @@ function HomePage() {
 
 function Projects() {
   const { value: projects } = useAtomSuspense(projectsAtom)
+
   if (projects.length === 0) {
-    return <p className="muted">No projects yet. Run <span className="mono">mr-handy db init</span> and load a plan.</p>
+    return (
+      <p className="muted">
+        No projects yet. Run <span className="mono">mr-handy db init</span> and load a plan.
+      </p>
+    )
   }
+
   const waiting = projects.flatMap((view) => yourTurn(view.steps).map((node) => ({ view, node })))
+
   return (
     <>
       <div className="row">
         {projects.map(({ project, steps }) => {
           const count = (state: StepState) => steps.filter((node) => node.state === state).length
+
           return (
             <div key={project.slug} className="box card">
               <div className="head">
@@ -42,17 +50,23 @@ function Projects() {
                 <span className="pill">{project.state}</span>
               </div>
               <div className="bar">
-                {barOrder.map((state) =>
-                  count(state) > 0 && (
-                    <div
-                      key={state}
-                      style={{ flex: count(state), background: stateColor[state], opacity: state === "Blocked" ? 0.35 : 1 }}
-                    />
-                  )
+                {barOrder.map(
+                  (state) =>
+                    count(state) > 0 && (
+                      <div
+                        key={state}
+                        style={{
+                          flex: count(state),
+                          background: stateColor[state],
+                          opacity: state === "Blocked" ? 0.35 : 1
+                        }}
+                      />
+                    )
                 )}
               </div>
               <div className="muted" style={{ fontSize: 12 }}>
-                {count("Merged") + count("Done")} of {steps.length - count("Dropped")} finished · {count("InReview")} in review
+                {count("Merged") + count("Done")} of {steps.length - count("Dropped")} finished · {count("InReview")} in
+                review
                 {" · "}
                 {count("NeedsYou")} need you · {count("Ready")} ready · {count("Blocked")} blocked
               </div>
@@ -67,7 +81,9 @@ function Projects() {
       </div>
       <div className="box">
         <h2>Needs you, across projects</h2>
-        {waiting.length === 0 ? <p className="muted">Nothing waits on you.</p> : (
+        {waiting.length === 0 ? (
+          <p className="muted">Nothing waits on you.</p>
+        ) : (
           <ul>
             {waiting.map(({ view, node }) => (
               <li key={`${view.project.slug}/${node.step.id}`}>
@@ -79,7 +95,9 @@ function Projects() {
                 >
                   {node.step.ticket ?? node.step.id}
                 </Link>{" "}
-                <span className="muted">{node.step.title} · {view.project.name}</span>
+                <span className="muted">
+                  {node.step.title} · {view.project.name}
+                </span>
               </li>
             ))}
           </ul>

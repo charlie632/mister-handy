@@ -5,6 +5,7 @@ Source: 831 Claude Code sessions (2026-09-17 → 2026-11-04, all projects), 82 C
 ## Conventions (seen in 3–4 slices)
 
 **Response style**
+
 - Answer first, short. "TL;DR?", "too long", "just answer", "one liner" for Slack.
 - Give a recommendation, not a list of options ("What is your recommendation?").
 - Present decisions as a numbered list, one at a time, so the user can answer inline.
@@ -12,6 +13,7 @@ Source: 831 Claude Code sessions (2026-09-17 → 2026-11-04, all projects), 82 C
 - Messages are often dictated, so typos are normal. Swearing means the agent overreached or got something wrong.
 
 **Delegation**
+
 - Keep the main thread clean. Side work goes to a new T3 thread or a subagent, and the main thread doesn't wait for it.
 - One thread owns a doc or epic, and other threads report to it ("tell [Thread: RFC Document] about the new tickets").
 - Child briefs have a fixed shape: Goal, Why or Evidence, touchpoints ("grep for more, don't trust this list"), Rules and scope, Report back.
@@ -21,6 +23,7 @@ Source: 831 Claude Code sessions (2026-09-17 → 2026-11-04, all projects), 82 C
 - The judge pattern: two competing branches, a read-only Fable judge, and fixes applied to the winner.
 
 **Verification**
+
 - Done means the PR is open, CI is green and bot reviews (qodo, claude-bot, `/cerby-pr-review`) are triaged. Don't run long suites locally when CI will run them.
 - Performance and infra changes need a live measurement: Datadog APM, dev EKS or ECS, or production data.
 - `/code-review` findings are numbered and the user rules on each: fix, ignore, or follow-up ticket. Default to fixing critical findings and deferring lows and mids.
@@ -28,12 +31,14 @@ Source: 831 Claude Code sessions (2026-09-17 → 2026-11-04, all projects), 82 C
 - UI PRs get screenshots or video attached with `gh --attach`.
 
 **Code and prose**
+
 - Big changes are additive and opt-in, behind a toggle. PRs stay small. API changes go in their own PR, and large sweeps split at roughly 50 files per PR.
 - Comments say why, are verified, and carry no ticket references.
 - Scope isolation beats DRY.
 - `/unslop` runs on all human-facing prose. Docs for the team are written neutrally, not addressed to one person.
 
 **Process**
+
 - "create a PR" ends most tasks, and branches follow `charlie632/<type>/<slug>`.
 - Rebase from main with `--force-with-lease`, and check that Alembic has a single head.
 - GitHub posts carry the robot header. The exceptions are `/cerby-pr-review` trigger comments and self-DMs.
@@ -46,4 +51,3 @@ Source: 831 Claude Code sessions (2026-09-17 → 2026-11-04, all projects), 82 C
 - Babysit logic has been rebuilt many times. GitHub GraphQL rate limits.
 - Worktrees and disk pile up: 62 lane worktrees (37 GB) were pruned by hand.
 - The Vault doesn't know about current epics. `/project` and `/rollup` don't read `~/.claude/orchestrate`.
-

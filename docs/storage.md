@@ -18,11 +18,11 @@ Step state is never stored. The domain package computes it from these rows at re
 
 Each writer owns its own tables, so no two writers ever update the same row.
 
-| Writer | Writes | Never writes |
-|---|---|---|
+| Writer                                                             | Writes                                                                                                                                            | Never writes                  |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
 | `mr-handy` command line tool, run by coordinators and step threads | `project` (inserted in Planning), `plan_step`, `dependency`, `step_thread`, `step_pull_request`, `status_update`, and Dropped through `closeStep` | Observations, `project.state` |
-| Sync loop, polling T3, GitHub and Jira | `thread_observation`, `pull_request_observation`, `ticket_observation` | Intent or links |
-| Web app, for the user | `project.state`, and Done or Dropped through `closeStep` | Everything else |
+| Sync loop, polling T3, GitHub and Jira                             | `thread_observation`, `pull_request_observation`, `ticket_observation`                                                                            | Intent or links               |
+| Web app, for the user                                              | `project.state`, and Done or Dropped through `closeStep`                                                                                          | Everything else               |
 
 Two writers do share a table. The web app and the command line tool both write `project` and `plan_step`, and apart from the close mark always different columns. SQLite in WAL mode serializes the writes.
 

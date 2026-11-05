@@ -1,10 +1,10 @@
 {
   "name": "@mister-handy/cli",
   "private": true,
-  "type": "module",
   "bin": {
     "mr-handy": "./bin/mr-handy.js"
   },
+  "type": "module",
   "scripts": {
     "typecheck": "effect-tsgo tsc -p .",
     "build": "vite build",

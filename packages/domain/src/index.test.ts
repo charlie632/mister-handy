@@ -22,10 +22,12 @@ describe("PlanStep", () => {
         ticket: "CHASE-2147",
         dependsOn: ["s1"]
       }
+
       const step = yield* Schema.decodeEffect(PlanStep)(input)
       expect(step.ticket).toBe("CHASE-2147")
       expect(yield* Schema.encodeEffect(PlanStep)(step)).toEqual(input)
-    }))
+    })
+  )
 })
 
 describe("TicketKey", () => {
@@ -41,6 +43,7 @@ describe("threadDeepLink", () => {
       environmentId: EnvironmentId.make("env-1"),
       threadId: ThreadId.make("thread:delegated-task:command%3Amcp%3Ab12b")
     })
+
     expect(link).toBe("t3code://threads/env-1/thread%3Adelegated-task%3Acommand%253Amcp%253Ab12b")
   })
 })
@@ -48,6 +51,7 @@ describe("threadDeepLink", () => {
 describe("deriveStepNodes", () => {
   const first = PlanStepId.make("first")
   const second = PlanStepId.make("second")
+
   const thread = (startedAt: string, state: StepThread["state"]): StepThread => ({
     stepId: second,
     environmentId: EnvironmentId.make("env-1"),
@@ -56,6 +60,7 @@ describe("deriveStepNodes", () => {
     state,
     title: null
   })
+
   const derive = (threads: ReadonlyArray<StepThread>) =>
     deriveStepNodes({
       steps: [
@@ -76,7 +81,13 @@ describe("deriveStepNodes", () => {
 
   it("reads a held step as Needs you whatever its dependencies, until it merges", () => {
     const held = (step: PlanStep, pullRequests: ReadonlyArray<StepPullRequest>) =>
-      deriveStepNodes({ steps: [{ ...step, heldFor: "Pick a rollout order" }], threads: [], pullRequests, tickets: [] })[0]
+      deriveStepNodes({
+        steps: [{ ...step, heldFor: "Pick a rollout order" }],
+        threads: [],
+        pullRequests,
+        tickets: []
+      })[0]
+
     const step = { id: first, title: "First", ticket: null, dependsOn: [] }
     expect(held(step, [])?.state).toBe("NeedsYou")
     expect(held({ ...step, dependsOn: [second] }, [])?.state).toBe("NeedsYou")
@@ -96,7 +107,11 @@ describe("findCycle", () => {
   const b = PlanStepId.make("b")
   const c = PlanStepId.make("c")
   const d = PlanStepId.make("d")
-  const chain = [{ before: a, after: b }, { before: b, after: c }]
+
+  const chain = [
+    { before: a, after: b },
+    { before: b, after: c }
+  ]
 
   it("allows an edge that only adds another path through the graph", () => {
     expect(findCycle([...chain, { before: a, after: d }], { before: d, after: c })).toBeNull()

@@ -13,12 +13,15 @@ describe("mr-handy", () => {
     const env = { MR_HANDY_DB: join(mkdtempSync(join(tmpdir(), "mr-handy-cli-")), "test.db") }
     const stdout: Array<string> = []
     const stderr: Array<string> = []
+
     const run = (...args: ReadonlyArray<string>) => {
       stdout.length = 0
       stderr.length = 0
+
       return Effect.exit(cli(args))
     }
-    return Effect.gen(function*() {
+
+    return Effect.gen(function* () {
       yield* run("db", "init")
       yield* run("project", "create", "demo", "--name", "Demo", "--environment", "env-1", "--thread", "coordinator")
       expect(stdout).toEqual(["Created project demo in Planning."])
@@ -28,10 +31,42 @@ describe("mr-handy", () => {
         "Added step second at position 2.",
         "Added dependency: second depends on first."
       ])
-      yield* run("step", "split", "second", "--project", "demo", "--part", "second-b=Second, b=c", "--part", "second-a=Second, a")
-      yield* run("status", "started", "--project", "demo", "--step", "first", "--environment", "env-1", "--thread", "step-1")
+      yield* run(
+        "step",
+        "split",
+        "second",
+        "--project",
+        "demo",
+        "--part",
+        "second-b=Second, b=c",
+        "--part",
+        "second-a=Second, a"
+      )
+      yield* run(
+        "status",
+        "started",
+        "--project",
+        "demo",
+        "--step",
+        "first",
+        "--environment",
+        "env-1",
+        "--thread",
+        "step-1"
+      )
       expect(stdout).toEqual(["Recorded: step first started in thread env-1/step-1."])
-      yield* run("status", "started", "--project", "demo", "--step", "first", "--environment", "env-1", "--thread", "step-1")
+      yield* run(
+        "status",
+        "started",
+        "--project",
+        "demo",
+        "--step",
+        "first",
+        "--environment",
+        "env-1",
+        "--thread",
+        "step-1"
+      )
       expect(stdout, "retry").toEqual(["No change."])
 
       const view = yield* readProject(ProjectSlug.make("demo")).pipe(Effect.provide(layer))
@@ -63,7 +98,10 @@ describe("mr-handy", () => {
       expect(stdout, "hold rerun").toEqual(["No change."])
       yield* run("project", "show", "demo")
       const held = JSON.parse(stdout.join("\n"))
-      expect([held.steps[0].state, held.steps[0].step.heldFor]).toEqual(["NeedsYou", "Which order do the routes ship in?"])
+      expect([held.steps[0].state, held.steps[0].step.heldFor]).toEqual([
+        "NeedsYou",
+        "Which order do the routes ship in?"
+      ])
       yield* run("step", "release", "first", "--project", "demo")
       expect(stdout).toEqual(["Released step first."])
       yield* run("step", "release", "first", "--project", "demo")
@@ -90,12 +128,15 @@ describe("mr-handy", () => {
     const skill = join(import.meta.dirname, "..", "..", "..", "skills", "coordinator")
     const stdout: Array<string> = []
     const stderr: Array<string> = []
+
     const run = (...args: ReadonlyArray<string>) => {
       stdout.length = 0
       stderr.length = 0
+
       return Effect.exit(cli(args))
     }
-    return Effect.gen(function*() {
+
+    return Effect.gen(function* () {
       yield* run("skill", "install")
       expect(stdout).toEqual([`Linked ${link} to ${skill}.`])
       expect(readlinkSync(link)).toBe(skill)
@@ -115,7 +156,10 @@ describe("mr-handy", () => {
       expect(Exit.isFailure(blocked), "a real directory is left alone").toBe(true)
     }).pipe(
       Effect.provide(NodeServices.layer),
-      Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromEnv({ env: { CLAUDE_CONFIG_DIR: config } })),
+      Effect.provideService(
+        ConfigProvider.ConfigProvider,
+        ConfigProvider.fromEnv({ env: { CLAUDE_CONFIG_DIR: config } })
+      ),
       Effect.provideService(Console.Console, {
         ...globalThis.console,
         log: (...args: ReadonlyArray<unknown>) => void stdout.push(args.join(" ")),

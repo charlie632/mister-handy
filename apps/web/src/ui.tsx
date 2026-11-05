@@ -23,13 +23,20 @@ export const prNumber = (url: string) => `#${url.split("/").pop()}`
 export const jiraUrl = (ticket: string) => `https://cerby.atlassian.net/browse/${ticket}`
 
 export const StatePill = ({ state }: { state: StepState }) => (
-  <span className="st" style={{ color: stateColor[state] }}>{stateLabel(state)}</span>
+  <span className="st" style={{ color: stateColor[state] }}>
+    {stateLabel(state)}
+  </span>
 )
 
 export const Nav = ({ project }: { project?: { slug: ProjectSlug; name: string } }) => (
   <nav className="nav">
-    <Link to="/" className="brand"><img src="/logo.png" alt="" width={24} height={23} />mr-handy</Link>
-    <Link to="/" activeOptions={{ exact: true }} activeProps={{ className: "on" }}>Home</Link>
+    <Link to="/" className="brand">
+      <img src="/logo.png" alt="" width={24} height={23} />
+      mr-handy
+    </Link>
+    <Link to="/" activeOptions={{ exact: true }} activeProps={{ className: "on" }}>
+      Home
+    </Link>
     {project && (
       <>
         <span>/</span>
@@ -52,38 +59,54 @@ const ROW_GAP = 40
 const layers = (steps: ReadonlyArray<StepNode>) => {
   const byId = new Map(steps.map((node) => [node.step.id, node]))
   const depth = new Map<PlanStepId, number>()
+
   const depthOf = (id: PlanStepId): number => {
     const known = depth.get(id)
+
     if (known !== undefined) return known
     depth.set(id, 0)
     const deps = byId.get(id)?.step.dependsOn.filter((dep) => byId.has(dep)) ?? []
     const value = Math.max(0, ...deps.map((dep) => depthOf(dep) + 1))
     depth.set(id, value)
+
     return value
   }
+
   const rows: Array<Array<StepNode>> = []
+
   for (const node of steps) (rows[depthOf(node.step.id)] ??= []).push(node)
+
   return rows.filter((row) => row !== undefined)
 }
 
 const subline = (node: StepNode) =>
   node.pullRequests.length > 0
-    ? node.pullRequests.map((pr) => `${prNumber(pr.url)}${pr.state === "Merged" ? " ✓" : ` ${pr.state?.toLowerCase() ?? "unseen"}`}`).join("  ")
+    ? node.pullRequests
+        .map((pr) => `${prNumber(pr.url)}${pr.state === "Merged" ? " ✓" : ` ${pr.state?.toLowerCase() ?? "unseen"}`}`)
+        .join("  ")
     : node.state === "Done"
-    ? "closed without code"
-    : node.threads.length > 0
-    ? ""
-    : "no thread yet"
+      ? "closed without code"
+      : node.threads.length > 0
+        ? ""
+        : "no thread yet"
 
-export const StepGraph = (
-  { slug, steps, selected }: { slug: ProjectSlug; steps: ReadonlyArray<StepNode>; selected: PlanStepId | undefined }
-) => {
+export const StepGraph = ({
+  slug,
+  steps,
+  selected
+}: {
+  slug: ProjectSlug
+  steps: ReadonlyArray<StepNode>
+  selected: PlanStepId | undefined
+}) => {
   const rows = layers(steps)
   const width = Math.max(WIDTH, ...rows.map((row) => row.length * (NODE_WIDTH + 16) + 16))
   const position = new Map<PlanStepId, { x: number; y: number }>()
   rows.forEach((row, i) => {
     const gap = (width - row.length * NODE_WIDTH) / (row.length + 1)
-    row.forEach((node, j) => position.set(node.step.id, { x: gap + j * (NODE_WIDTH + gap), y: 6 + i * (NODE_HEIGHT + ROW_GAP) }))
+    row.forEach((node, j) =>
+      position.set(node.step.id, { x: gap + j * (NODE_WIDTH + gap), y: 6 + i * (NODE_HEIGHT + ROW_GAP) })
+    )
   })
   const height = 6 + rows.length * (NODE_HEIGHT + ROW_GAP) - ROW_GAP + 8
 
@@ -98,9 +121,16 @@ export const StepGraph = (
         node.step.dependsOn.map((dep) => {
           const from = position.get(dep)
           const to = position.get(node.step.id)
+
           if (from === undefined || to === undefined) return null
-          const x1 = from.x + NODE_WIDTH / 2, y1 = from.y + NODE_HEIGHT, x2 = to.x + NODE_WIDTH / 2, y2 = to.y
+
+          const x1 = from.x + NODE_WIDTH / 2,
+            y1 = from.y + NODE_HEIGHT,
+            x2 = to.x + NODE_WIDTH / 2,
+            y2 = to.y
+
           const mid = (y1 + y2) / 2
+
           return (
             <path
               key={`${dep}->${node.step.id}`}
@@ -118,6 +148,7 @@ export const StepGraph = (
         const color = stateColor[node.state]
         const isSelected = node.step.id === selected
         const flags = [node.drift && "drift", node.earlyStart && "early"].filter(Boolean).join(" · ")
+
         return (
           <Link
             key={node.step.id}
@@ -138,11 +169,15 @@ export const StepGraph = (
               strokeWidth={isSelected ? 3 : 1.5}
               strokeDasharray={node.state === "Blocked" ? "5 4" : undefined}
             />
-            <text x={x + 12} y={y + 21} className="k">{node.step.ticket ?? "no ticket"}</text>
+            <text x={x + 12} y={y + 21} className="k">
+              {node.step.ticket ?? "no ticket"}
+            </text>
             <text x={x + NODE_WIDTH - 12} y={y + 21} className="s" textAnchor="end" fill={color}>
               {stateLabel(node.state)}
             </text>
-            <text x={x + 12} y={y + 41} className="t">{truncate(node.step.title, 31)}</text>
+            <text x={x + 12} y={y + 41} className="t">
+              {truncate(node.step.title, 31)}
+            </text>
             <text x={x + 12} y={y + 61} className="m">
               {subline(node)}
               {flags && <tspan fill="var(--destructive)" fontWeight={600}>{`  ${flags}`}</tspan>}

@@ -31,7 +31,10 @@ export const databasePath = Config.String("MR_HANDY_DB").pipe(
 
 export const layer = SqliteClient.layerConfig({ filename: databasePath })
 
-export class ScriptError extends Data.TaggedError("ScriptError")<{ readonly message: string; readonly cause: unknown }> {}
+export class ScriptError extends Data.TaggedError("ScriptError")<{
+  readonly message: string
+  readonly cause: unknown
+}> {}
 
 const scriptError = (cause: unknown) =>
   new ScriptError({ message: cause instanceof Error ? cause.message : String(cause), cause })
@@ -45,6 +48,7 @@ export const runScript = (filename: string, script: string) =>
     Effect.try({
       try: () => {
         mkdirSync(dirname(filename), { recursive: true })
+
         return new DatabaseSync(filename)
       },
       catch: scriptError
@@ -54,6 +58,7 @@ export const runScript = (filename: string, script: string) =>
         try: () => {
           // Both pragmas are no-ops inside a transaction, so they run before BEGIN.
           db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; BEGIN")
+
           try {
             db.exec(script)
             db.exec("COMMIT")
@@ -81,6 +86,7 @@ const addMissingColumns = (filename: string) =>
         try: () => {
           for (const { table, column, type } of addedColumns) {
             const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+
             if (!columns.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`)
           }
         },
@@ -89,7 +95,8 @@ const addMissingColumns = (filename: string) =>
     (db) => Effect.sync(() => db.close())
   )
 
-export const applySchema = (filename: string) => Effect.andThen(runScript(filename, schema), addMissingColumns(filename))
+export const applySchema = (filename: string) =>
+  Effect.andThen(runScript(filename, schema), addMissingColumns(filename))
 
 export interface ProjectView {
   readonly project: Project
@@ -123,8 +130,9 @@ const ObservedAtRow = Schema.Struct({ observedAt: Schema.NullOr(Schema.String) }
 
 const decodeAll = <S extends Schema.Decoder<unknown>>(row: S) => Schema.decodeUnknownEffect(Schema.Array(row))
 
-export const readProject = Effect.fn("readProject")(function*(slug: ProjectSlug) {
+export const readProject = Effect.fn("readProject")(function* (slug: ProjectSlug) {
   const sql = yield* SqlClient.SqlClient
+
   const [row] = yield* decodeAll(ProjectRow)(
     yield* sql`
       SELECT p.slug, p.name, p.state, p.epic_key AS epic,
@@ -135,19 +143,23 @@ export const readProject = Effect.fn("readProject")(function*(slug: ProjectSlug)
         ON o.env_id = p.coordinator_env_id AND o.thread_id = p.coordinator_thread_id
       WHERE p.slug = ${slug}`
   )
+
   if (row === undefined) return null
 
   const references = yield* decodeAll(ProjectReference)(
     yield* sql`SELECT label, url FROM project_reference WHERE project_slug = ${slug} ORDER BY rowid`
   )
+
   const stepRows = yield* decodeAll(StepRow)(
     yield* sql`
       SELECT step_id AS id, title, ticket_key AS ticket, closed_as AS "closedAs", held_for AS "heldFor"
       FROM plan_step WHERE project_slug = ${slug} ORDER BY position`
   )
+
   const dependencies = yield* decodeAll(DependencyRow)(
     yield* sql`SELECT before_step AS before, after_step AS after FROM dependency WHERE project_slug = ${slug}`
   )
+
   const threads = yield* decodeAll(StepThread)(
     yield* sql`
       SELECT t.step_id AS "stepId", t.env_id AS "environmentId", t.thread_id AS "threadId",
@@ -156,6 +168,7 @@ export const readProject = Effect.fn("readProject")(function*(slug: ProjectSlug)
       LEFT JOIN thread_observation o USING (env_id, thread_id)
       WHERE t.project_slug = ${slug}`
   )
+
   const pullRequests = yield* decodeAll(StepPullRequest)(
     yield* sql`
       SELECT pr.step_id AS "stepId", pr.url, o.state
@@ -164,6 +177,7 @@ export const readProject = Effect.fn("readProject")(function*(slug: ProjectSlug)
       WHERE pr.project_slug = ${slug}
       ORDER BY pr.opened_at`
   )
+
   const tickets = yield* decodeAll(TicketObservation)(
     yield* sql`
       SELECT o.ticket_key AS ticket, o.jira_status AS "jiraStatus"
@@ -171,6 +185,7 @@ export const readProject = Effect.fn("readProject")(function*(slug: ProjectSlug)
       JOIN plan_step s ON s.ticket_key = o.ticket_key
       WHERE s.project_slug = ${slug}`
   )
+
   const [observed] = yield* decodeAll(ObservedAtRow)(
     yield* sql`
       SELECT MAX(observed_at) AS "observedAt" FROM (
@@ -191,7 +206,9 @@ export const readProject = Effect.fn("readProject")(function*(slug: ProjectSlug)
     ...(closedAs === null ? {} : { closedAs }),
     ...(heldFor === null ? {} : { heldFor })
   }))
+
   const { environmentId, threadId, coordinatorTitle, ...project } = row
+
   return {
     project: {
       ...project,
@@ -204,7 +221,10 @@ export const readProject = Effect.fn("readProject")(function*(slug: ProjectSlug)
   } satisfies ProjectView
 })
 
-export class PlanReadError extends Data.TaggedError("PlanReadError")<{ readonly message: string; readonly cause: unknown }> {}
+export class PlanReadError extends Data.TaggedError("PlanReadError")<{
+  readonly message: string
+  readonly cause: unknown
+}> {}
 
 /** The project's plan.md, or null when the coordinator hasn't written one yet. */
 export const readPlan = (slug: ProjectSlug) =>
@@ -218,12 +238,15 @@ export const readPlan = (slug: ProjectSlug) =>
     )
   )
 
-export const listProjects = Effect.fn("listProjects")(function*() {
+export const listProjects = Effect.fn("listProjects")(function* () {
   const sql = yield* SqlClient.SqlClient
+
   const slugs = yield* decodeAll(Schema.Struct({ slug: ProjectSlug }))(
     yield* sql`SELECT slug FROM project ORDER BY created_at`
   )
+
   const views = yield* Effect.forEach(slugs, ({ slug }) => readProject(slug))
+
   return views.filter((view) => view !== null)
 })
 
