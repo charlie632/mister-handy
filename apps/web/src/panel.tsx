@@ -16,7 +16,7 @@ const readWidth = () => {
   }
 }
 
-const PanelIcon = ({ open }: { open: boolean }) => (
+export const PanelIcon = ({ open }: { open: boolean }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <rect x="3" y="3" width="18" height="18" rx="2" />
     <path d="M15 3v18" />
@@ -24,21 +24,27 @@ const PanelIcon = ({ open }: { open: boolean }) => (
   </svg>
 )
 
-export const PanelToggle = ({ open, onToggle }: { open: boolean; onToggle: () => void }) => (
-  <button
-    type="button"
-    className="icon-btn"
-    onClick={onToggle}
-    title={open ? "Hide panel" : "Show panel"}
-    aria-label={open ? "Hide panel" : "Show panel"}
-    aria-pressed={open}
-  >
-    <PanelIcon open={open} />
-  </button>
-)
+/** Props for the control that shows or hides the panel. Render it as a link so it works before the page hydrates. */
+export const panelToggleProps = (open: boolean) => ({
+  className: "icon-btn",
+  title: open ? "Hide panel" : "Show panel",
+  "aria-label": open ? "Hide panel" : "Show panel",
+  "aria-pressed": open,
+  children: <PanelIcon open={open} />
+})
 
 /** Sits beside the page on wide screens and slides over it on narrow ones. Drag its left edge to resize. */
-export function RightPanel({ open, title, onClose, children }: { open: boolean; title: ReactNode; onClose: () => void; children: ReactNode }) {
+export function RightPanel(
+  { open, title, close, onClose, children }: {
+    open: boolean
+    title: ReactNode
+    /** The panel's own close control, made with panelToggleProps(true). */
+    close: ReactNode
+    /** Escape and a click on the backdrop. */
+    onClose: () => void
+    children: ReactNode
+  }
+) {
   const [width, setWidth] = useState(DEFAULT_WIDTH)
 
   useEffect(() => setWidth(readWidth()), [])
@@ -86,7 +92,7 @@ export function RightPanel({ open, title, onClose, children }: { open: boolean; 
         <div className="panel-resize" onPointerDown={startResize} role="separator" aria-orientation="vertical" />
         <div className="panel-head">
           <div className="panel-title">{title}</div>
-          <PanelToggle open onToggle={onClose} />
+          {close}
         </div>
         <div className="panel-body">{children}</div>
       </aside>

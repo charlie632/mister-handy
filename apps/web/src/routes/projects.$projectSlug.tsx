@@ -4,7 +4,7 @@ import { isFinished, PlanStepId, ProjectSlug, type StepNode, threadDeepLink } fr
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
 import { Option, Schema } from "effect"
 import { type CSSProperties, Suspense } from "react"
-import { PanelToggle, RightPanel } from "../panel.tsx"
+import { panelToggleProps, RightPanel } from "../panel.tsx"
 import { closeStepAtom, projectAtom } from "../projects.ts"
 import { jiraUrl, Nav, prNumber, StatePill, StepGraph, stateColor, stateLabel, yourTurn } from "../ui.tsx"
 
@@ -60,9 +60,13 @@ function ProjectContent() {
         <div className="head-actions">
           <span className="pill">{project.state}</span>
           {fallback && (
-            <PanelToggle
-              open={selected !== undefined}
-              onToggle={() => select(selected === undefined ? fallback.step.id : undefined)}
+            <Link
+              to="/projects/$projectSlug"
+              params={{ projectSlug: project.slug }}
+              search={selected === undefined ? { step: fallback.step.id } : {}}
+              replace
+              resetScroll={false}
+              {...panelToggleProps(selected !== undefined)}
             />
           )}
         </div>
@@ -110,6 +114,16 @@ function ProjectContent() {
       <RightPanel
         open={selected !== undefined}
         onClose={() => select(undefined)}
+        close={
+          <Link
+            to="/projects/$projectSlug"
+            params={{ projectSlug: project.slug }}
+            search={{}}
+            replace
+            resetScroll={false}
+            {...panelToggleProps(true)}
+          />
+        }
         title={selected && (
           <>
             <span className="mono" style={{ fontWeight: 600 }}>{selected.step.ticket ?? "no ticket"}</span>

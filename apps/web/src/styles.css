@@ -89,7 +89,7 @@ svg a:hover rect { fill: var(--accent); }
 .workspace-main { flex: 1 1 auto; min-width: 0; overflow-y: auto; }
 .head-actions { display: flex; align-items: center; gap: 8px; }
 .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 1px solid transparent; border-radius: 6px; background: none; color: var(--muted-foreground); cursor: pointer; }
-.icon-btn:hover { background: var(--accent); color: var(--foreground); }
+.icon-btn:hover { background: var(--accent); color: var(--foreground); text-decoration: none; }
 .icon-btn[aria-pressed="true"] { color: var(--foreground); }
 
 .panel { position: relative; flex: 0 0 auto; display: flex; flex-direction: column; min-width: 320px; max-width: 70vw; height: 100vh; background: var(--card); border-left: 1px solid var(--border); }
