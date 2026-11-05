@@ -1,4 +1,4 @@
-import { closeStep, CloseStep, layer, listProjects, readProject } from "@mister-handy/db"
+import { closeStep, CloseStep, layer, listProjects, readPlan, readProject } from "@mister-handy/db"
 import { ProjectSlug } from "@mister-handy/domain"
 import { createServerFn } from "@tanstack/react-start"
 import { Effect, ManagedRuntime, Schema } from "effect"
@@ -12,6 +12,10 @@ const getProjects = createServerFn({ method: "GET" }).handler(() => database.run
 const getProject = createServerFn({ method: "GET" })
   .validator((slug: string) => slug)
   .handler(({ data }) => database.runPromise(Effect.flatMap(Schema.decodeEffect(ProjectSlug)(data), readProject)))
+
+const getPlan = createServerFn({ method: "GET" })
+  .validator((slug: string) => slug)
+  .handler(({ data }) => Effect.runPromise(Effect.flatMap(Schema.decodeEffect(ProjectSlug)(data), readPlan)))
 
 const postCloseStep = createServerFn({ method: "POST" })
   .validator((input: typeof CloseStep.Encoded) => input)
@@ -47,6 +51,9 @@ export const projectAtom = Atom.family((slug: ProjectSlug) => {
     return get(source)
   }, { initialValueTarget: source })
 })
+
+/** Read once each time the panel opens it; the plan changes rarely enough not to poll. */
+export const planAtom = Atom.family((slug: ProjectSlug) => Atom.make(Effect.tryPromise(() => getPlan({ data: slug }))))
 
 export const closeStepAtom = Atom.fn((input: CloseStep, get) =>
   Effect.tryPromise(() => postCloseStep({ data: input })).pipe(

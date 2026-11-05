@@ -4,8 +4,10 @@ import { isFinished, PlanStepId, ProjectSlug, type StepNode, threadDeepLink } fr
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
 import { Option, Schema } from "effect"
 import { type CSSProperties, Suspense } from "react"
+import Markdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { panelToggleProps, RightPanel } from "../panel.tsx"
-import { closeStepAtom, projectAtom } from "../projects.ts"
+import { closeStepAtom, planAtom, projectAtom } from "../projects.ts"
 import { jiraUrl, Nav, prNumber, StatePill, StepGraph, stateColor, stateLabel, yourTurn } from "../ui.tsx"
 
 export const Route = createFileRoute("/projects/$projectSlug")({
@@ -15,7 +17,7 @@ export const Route = createFileRoute("/projects/$projectSlug")({
     }),
     stringify: ({ projectSlug }) => ({ projectSlug })
   },
-  validateSearch: Schema.toStandardSchemaV1(Schema.Struct({ step: Schema.optional(PlanStepId) })),
+  validateSearch: Schema.toStandardSchemaV1(Schema.Struct({ step: Schema.optional(PlanStepId), plan: Schema.optional(Schema.Literal(true)) })),
   component: ProjectPage
 })
 
@@ -29,7 +31,7 @@ function ProjectPage() {
 
 function ProjectContent() {
   const { projectSlug } = Route.useParams()
-  const { step } = Route.useSearch()
+  const { step, plan } = Route.useSearch()
   const navigate = Route.useNavigate()
   const { value: view } = useAtomSuspense(projectAtom(projectSlug))
   if (view === null) {
@@ -38,6 +40,8 @@ function ProjectContent() {
   const { project, steps } = view
   const waiting = yourTurn(steps)
   const selected = steps.find((node) => node.step.id === step)
+  const showPlan = plan === true && selected === undefined
+  const panelOpen = selected !== undefined || showPlan
   const select = (id: PlanStepId | undefined) =>
     navigate({ search: id === undefined ? {} : { step: id }, replace: true, resetScroll: false })
   const fallback = waiting[0] ?? steps[0]
@@ -63,10 +67,10 @@ function ProjectContent() {
             <Link
               to="/projects/$projectSlug"
               params={{ projectSlug: project.slug }}
-              search={selected === undefined ? { step: fallback.step.id } : {}}
+              search={panelOpen ? {} : { step: fallback.step.id }}
               replace
               resetScroll={false}
-              {...panelToggleProps(selected !== undefined)}
+              {...panelToggleProps(panelOpen)}
             />
           )}
         </div>
@@ -77,7 +81,18 @@ function ProjectContent() {
           <h2>Plan and epic</h2>
           <ul>
             {project.references.map((ref) => <li key={ref.url}><a href={ref.url}>{ref.label}</a></li>)}
-            <li><span className="mono muted">~/.mr-handy/{project.slug}/plan.md</span></li>
+            <li>
+              <Link
+                className="mono"
+                to="/projects/$projectSlug"
+                params={{ projectSlug: project.slug }}
+                search={{ plan: true }}
+                replace
+                resetScroll={false}
+              >
+                ~/.mr-handy/{project.slug}/plan.md
+              </Link>
+            </li>
           </ul>
         </div>
         <div className="box">
@@ -112,7 +127,8 @@ function ProjectContent() {
     </main>
     </div>
       <RightPanel
-        open={selected !== undefined}
+        open={panelOpen}
+        label={showPlan ? "Plan" : "Step details"}
         onClose={() => select(undefined)}
         close={
           <Link
@@ -124,15 +140,37 @@ function ProjectContent() {
             {...panelToggleProps(true)}
           />
         }
-        title={selected && (
-          <>
-            <span className="mono" style={{ fontWeight: 600 }}>{selected.step.ticket ?? "no ticket"}</span>
-            <StatePill state={selected.state} />
-          </>
-        )}
+        title={showPlan
+          ? <span className="mono" style={{ fontWeight: 600 }}>plan.md</span>
+          : selected && (
+            <>
+              <span className="mono" style={{ fontWeight: 600 }}>{selected.step.ticket ?? "no ticket"}</span>
+              <StatePill state={selected.state} />
+            </>
+          )}
       >
+        {showPlan && (
+          <Suspense fallback={<p className="muted">Loading plan</p>}>
+            <PlanDetail slug={project.slug} />
+          </Suspense>
+        )}
         {selected && <StepDetail view={view} node={selected} />}
       </RightPanel>
+    </div>
+  )
+}
+
+function PlanDetail({ slug }: { slug: ProjectSlug }) {
+  const { value: plan } = useAtomSuspense(planAtom(slug))
+  if (plan === null) return <p className="muted">The coordinator hasn't written ~/.mr-handy/{slug}/plan.md yet.</p>
+  return (
+    <div className="markdown">
+      <Markdown
+        remarkPlugins={[remarkGfm]}
+        components={{ a: ({ node: _, ...props }) => <a {...props} target="_blank" rel="noreferrer" /> }}
+      >
+        {plan}
+      </Markdown>
     </div>
   )
 }

@@ -19,6 +19,7 @@ import {
 import { Config, Data, Effect, Schema } from "effect"
 import { SqlClient } from "effect/sql"
 import { mkdirSync } from "node:fs"
+import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { DatabaseSync } from "node:sqlite"
@@ -202,6 +203,20 @@ export const readProject = Effect.fn("readProject")(function*(slug: ProjectSlug)
     steps: deriveStepNodes({ steps, threads, pullRequests, tickets })
   } satisfies ProjectView
 })
+
+export class PlanReadError extends Data.TaggedError("PlanReadError")<{ readonly message: string; readonly cause: unknown }> {}
+
+/** The project's plan.md, or null when the coordinator hasn't written one yet. */
+export const readPlan = (slug: ProjectSlug) =>
+  Effect.tryPromise({
+    try: () => readFile(join(homedir(), ".mr-handy", slug, "plan.md"), "utf8"),
+    catch: (cause) => new PlanReadError({ message: cause instanceof Error ? cause.message : String(cause), cause })
+  }).pipe(
+    Effect.catchIf(
+      (error) => (error.cause as NodeJS.ErrnoException | undefined)?.code === "ENOENT",
+      () => Effect.succeed(null)
+    )
+  )
 
 export const listProjects = Effect.fn("listProjects")(function*() {
   const sql = yield* SqlClient.SqlClient

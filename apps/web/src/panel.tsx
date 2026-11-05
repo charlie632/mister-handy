@@ -35,8 +35,10 @@ export const panelToggleProps = (open: boolean) => ({
 
 /** Sits beside the page on wide screens and slides over it on narrow ones. Drag its left edge to resize. */
 export function RightPanel(
-  { open, title, close, onClose, children }: {
+  { open, label, title, close, onClose, children }: {
     open: boolean
+    /** Names the panel for screen readers. */
+    label: string
     title: ReactNode
     /** The panel's own close control, made with panelToggleProps(true). */
     close: ReactNode
@@ -88,7 +90,7 @@ export function RightPanel(
   return (
     <>
       <div className="panel-backdrop" onClick={onClose} />
-      <aside className="panel" style={{ width }} aria-label="Step details">
+      <aside className="panel" style={{ width }} aria-label={label}>
         <div className="panel-resize" onPointerDown={startResize} role="separator" aria-orientation="vertical" />
         <div className="panel-head">
           <div className="panel-title">{title}</div>
