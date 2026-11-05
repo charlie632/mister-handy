@@ -6,6 +6,7 @@ import {
   findCycle,
   PlanStep,
   PlanStepId,
+  type StepPullRequest,
   type StepThread,
   ThreadId,
   TicketKey,
@@ -71,6 +72,15 @@ describe("deriveStepNodes", () => {
     expect(node?.state).toBe("NeedsYou")
     expect(node?.earlyStart).toBe(true)
     expect(node?.threads.map((t) => t.state)).toEqual(["Failed", "Running"])
+  })
+
+  it("reads a held step as Needs you whatever its dependencies, until it merges", () => {
+    const held = (step: PlanStep, pullRequests: ReadonlyArray<StepPullRequest>) =>
+      deriveStepNodes({ steps: [{ ...step, heldFor: "Pick a rollout order" }], threads: [], pullRequests, tickets: [] })[0]
+    const step = { id: first, title: "First", ticket: null, dependsOn: [] }
+    expect(held(step, [])?.state).toBe("NeedsYou")
+    expect(held({ ...step, dependsOn: [second] }, [])?.state).toBe("NeedsYou")
+    expect(held(step, [{ stepId: first, url: "https://github.com/o/r/pull/1", state: "Merged" }])?.state).toBe("Merged")
   })
 
   it("falls back to the dependencies when the newest thread is settled", () => {

@@ -68,7 +68,8 @@ export const runScript = (filename: string, script: string) =>
 
 /** Columns added after their table first shipped. CREATE TABLE IF NOT EXISTS never adds them to an old table. */
 const addedColumns: ReadonlyArray<{ readonly table: string; readonly column: string; readonly type: string }> = [
-  { table: "step_thread", column: "title", type: "TEXT" }
+  { table: "step_thread", column: "title", type: "TEXT" },
+  { table: "plan_step", column: "held_for", type: "TEXT" }
 ]
 
 const addMissingColumns = (filename: string) =>
@@ -111,7 +112,8 @@ const StepRow = Schema.Struct({
   id: PlanStepId,
   title: Schema.NonEmptyString,
   ticket: Schema.NullOr(TicketKey),
-  closedAs: Schema.NullOr(ClosedAs)
+  closedAs: Schema.NullOr(ClosedAs),
+  heldFor: Schema.NullOr(Schema.NonEmptyString)
 })
 
 const DependencyRow = Schema.Struct({ before: PlanStepId, after: PlanStepId })
@@ -139,7 +141,7 @@ export const readProject = Effect.fn("readProject")(function*(slug: ProjectSlug)
   )
   const stepRows = yield* decodeAll(StepRow)(
     yield* sql`
-      SELECT step_id AS id, title, ticket_key AS ticket, closed_as AS "closedAs"
+      SELECT step_id AS id, title, ticket_key AS ticket, closed_as AS "closedAs", held_for AS "heldFor"
       FROM plan_step WHERE project_slug = ${slug} ORDER BY position`
   )
   const dependencies = yield* decodeAll(DependencyRow)(
@@ -182,10 +184,11 @@ export const readProject = Effect.fn("readProject")(function*(slug: ProjectSlug)
       )`
   )
 
-  const steps = stepRows.map(({ closedAs, ...step }) => ({
+  const steps = stepRows.map(({ closedAs, heldFor, ...step }) => ({
     ...step,
     dependsOn: dependencies.filter((d) => d.after === step.id).map((d) => d.before),
-    ...(closedAs === null ? {} : { closedAs })
+    ...(closedAs === null ? {} : { closedAs }),
+    ...(heldFor === null ? {} : { heldFor })
   }))
   const { environmentId, threadId, coordinatorTitle, ...project } = row
   return {

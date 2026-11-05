@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS plan_step (
   position      INTEGER NOT NULL,
   closed_as     TEXT CHECK (closed_as IN ('Done','Dropped')),
   closed_at     TEXT,
+  held_for      TEXT,
   PRIMARY KEY (project_slug, step_id),
   CHECK ((closed_as IS NULL) = (closed_at IS NULL))
 );

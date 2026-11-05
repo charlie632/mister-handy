@@ -8,7 +8,7 @@ One SQLite database, `~/.mr-handy/mister-handy.db` unless `MR_HANDY_DB` names an
 
 The database stores three kinds of row:
 
-- **Intent.** What the coordinator and the user decided. Projects, plan steps, dependencies, and the manual Done and Dropped marks.
+- **Intent.** What the coordinator and the user decided. Projects, plan steps, dependencies, holds, and the manual Done and Dropped marks.
 - **Links.** Which thread and which pull requests belong to which step. They arrive as status updates from the command line tool, because nothing else knows them.
 - **Observations.** The last thing seen in T3, GitHub or Jira about a thread, a pull request or a ticket, with the time it was seen.
 
@@ -37,6 +37,7 @@ Notes on the shape:
 - **Steps have their own ids, and the ticket key is a nullable column.** During Planning a step exists before its ticket is filed. A step without a ticket is a to-do for the coordinator.
 - **A step can have several step threads.** When a thread dies and the coordinator starts another one, both rows stay. The node links to the newest one by `started_at`.
 - **Observations are one row per thing, overwritten on each poll.** The history of what happened lives in `status_update`, not in old observations.
+- **A hold is `plan_step.held_for`**, the decision the coordinator is waiting on, as text. Only the command line tool writes it, through `mr-handy step hold` and `step release`. Holding again with the same reason changes nothing; a new reason replaces the old one.
 - **`Missing`** is a thread state that only the sync loop sets. It means T3 no longer knows the thread, for example because another machine owns it. A step whose newest thread is Missing reads as Needs you.
 - **Cycles in `dependency` can't be blocked by a CHECK.** The command line tool rejects an edge that would close a cycle before it writes.
 
@@ -56,10 +57,11 @@ The rules are the ones in `CONTEXT.md`, applied in this order, with the first ma
 
 1. `closed_as` is set. The state is Done or Dropped.
 2. Every pull request observed as Merged, at least one of them. The state is Merged.
-3. The newest step thread is observed Running. The state is Working.
-4. Any pull request is Open or Draft. The state is In review.
-5. A step thread exists and is Waiting, Idle, Failed or Missing. The state is Needs you.
-6. Every step it depends on is Merged or Done. The state is Ready.
-7. Otherwise the state is Blocked.
+3. `held_for` is set. The state is Needs you.
+4. The newest step thread is observed Running. The state is Working.
+5. Any pull request is Open or Draft. The state is In review.
+6. A step thread exists and is Waiting, Idle, Failed or Missing. The state is Needs you.
+7. Every step it depends on is Merged or Done. The state is Ready.
+8. Otherwise the state is Blocked.
 
 Early start and Drift are flags computed alongside the state, not stored either.

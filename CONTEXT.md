@@ -48,13 +48,17 @@ Where a plan step stands, worked out from its dependencies, its thread and its p
 - **Blocked**: at least one step it depends on isn't merged or done, and no work has started.
 - **Ready**: every step it depends on is merged or done, and no work has started.
 - **Working**: its thread is running.
-- **Needs you**: its thread stopped without an open pull request. It asked the user something, it failed, or it went idle.
+- **Needs you**: the coordinator is holding it on a decision only the user can make, or its thread stopped without an open pull request (it asked the user something, it failed, or it went idle).
 - **In review**: it has an open pull request and its thread isn't running.
 - **Merged**: all its pull requests are merged, and the user hasn't marked it done yet.
 - **Done**: the user marked it done.
 - **Dropped**: the user removed it from the plan.
 
 _Avoid_: Status, ticket state, Jira status, column, Stalled
+
+**Hold**:
+A decision the coordinator is waiting on the user for before a step can go ahead, recorded on the step with its reason. A held step reads Needs you whatever its dependencies say, until the coordinator releases it or the step merges.
+_Avoid_: Pause, block, on hold
 
 **Early start**:
 A step with work in progress while a step it depends on isn't merged or done yet. It's a flag shown beside the step's state, not an error, because stacked work does this on purpose.

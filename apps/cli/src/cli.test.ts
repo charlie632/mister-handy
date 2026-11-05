@@ -57,6 +57,18 @@ describe("mr-handy", () => {
       expect(Exit.isFailure(missing), "unknown project fails the command").toBe(true)
       expect(stderr).toEqual(["Refused: there is no project nope."])
 
+      yield* run("step", "hold", "first", "--project", "demo", "--reason", "Which order do the routes ship in?")
+      expect(stdout).toEqual(["Held step first on: Which order do the routes ship in?"])
+      yield* run("step", "hold", "first", "--project", "demo", "--reason", "Which order do the routes ship in?")
+      expect(stdout, "hold rerun").toEqual(["No change."])
+      yield* run("project", "show", "demo")
+      const held = JSON.parse(stdout.join("\n"))
+      expect([held.steps[0].state, held.steps[0].step.heldFor]).toEqual(["NeedsYou", "Which order do the routes ship in?"])
+      yield* run("step", "release", "first", "--project", "demo")
+      expect(stdout).toEqual(["Released step first."])
+      yield* run("step", "release", "first", "--project", "demo")
+      expect(stdout, "release rerun").toEqual(["No change."])
+
       const refused = yield* run("dependency", "add", "first", "--project", "demo", "--on", "second")
       expect(Exit.isFailure(refused), "refusal fails the command").toBe(true)
       expect(stderr).toEqual(["Refused: first depending on second would close a cycle: first -> second -> first."])

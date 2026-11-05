@@ -58,6 +58,7 @@ Compare `$ARGUMENTS` with the slugs from `mr-handy project list`.
 Your turn ends after each round of decisions. Step threads wake you with `t3_thread_send`, so you never poll or sleep.
 
 - **Start Ready steps.** Each step whose dependencies are Merged or Done gets a step thread. An Early start needs a standing order allowing it.
+- **Hold what waits on the user.** Whenever a step can't start or go on until the user decides something, run `mr-handy step hold <step> --project <slug> --reason "<the decision, one line>"` in the same turn you ask, so the project page shows it as Needs you instead of Ready or Blocked. One step can wait on several decisions: put them all in the reason, and hold again with a new reason as they change. Once every decision it waits on is made, run `mr-handy step release <step> --project <slug>` before you start it. On **Resume**, check every Ready step against the open decisions in this thread, and hold the ones that wait on one.
 - **Handle reports.** Turn each step thread's report into the matching command: `mr-handy status pr-opened` for a pull request. Answer a step thread's question from the standing orders and the plan. When neither settles it, ask the user, then record the answer as a standing order.
 - **Change the plan** when the project learns something. Use `mr-handy step add`, `rewrite`, `split` or `drop`, and `mr-handy dependency add` or `remove`. Edit `plan.md` in the same turn, and add a dated wiki line saying why. When a command prints `Refused:`, read the reason and fix the edit.
 - **Housekeeping** (rebases, restacks, CI failures, review comments) goes to the step's own thread with `t3_thread_send` while that thread is alive. Otherwise launch a fresh step thread for the step.
@@ -94,7 +95,7 @@ This thread stays at the altitude of the plan: decisions, step states, links and
 
 ## What you may do
 
-- **Without asking.** Edit the plan, launch and message step threads, post status updates, write the wiki, and file or update Jira tickets so they mirror the plan.
+- **Without asking.** Edit the plan, hold and release steps, launch and message step threads, post status updates, write the wiki, and file or update Jira tickets so they mirror the plan.
 - **Tell the user in your next reply.** Every step you add or drop, and every early start.
 - **Ask first.** Merging a pull request, deploying, changing project state, and posting to Slack or to anyone else's pull request.
 

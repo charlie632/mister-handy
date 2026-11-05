@@ -269,6 +269,30 @@ const DropStep = Effect.fnUntraced(function*(edit: Case<"DropStep">) {
   return yield* closeStep({ project: edit.project, stepId: edit.step, closedAs: "Dropped" })
 })
 
+const HoldStep = Effect.fnUntraced(function*(edit: Case<"HoldStep">) {
+  const sql = yield* SqlClient.SqlClient
+  const plan = yield* loadPlan(edit.project)
+  yield* plan.require(edit.step)
+  const held = yield* sql`
+    UPDATE plan_step SET held_for = ${edit.reason}
+    WHERE project_slug = ${edit.project} AND step_id = ${edit.step} AND held_for IS NOT ${edit.reason}
+    RETURNING 1`
+  return held.length === 0
+    ? []
+    : [{ _tag: "StepHeld", step: edit.step, reason: edit.reason }] satisfies Array<PlanChange>
+})
+
+const ReleaseStep = Effect.fnUntraced(function*(edit: Case<"ReleaseStep">) {
+  const sql = yield* SqlClient.SqlClient
+  const plan = yield* loadPlan(edit.project)
+  yield* plan.require(edit.step)
+  const released = yield* sql`
+    UPDATE plan_step SET held_for = NULL
+    WHERE project_slug = ${edit.project} AND step_id = ${edit.step} AND held_for IS NOT NULL
+    RETURNING 1`
+  return released.length === 0 ? [] : [{ _tag: "StepReleased", step: edit.step }] satisfies Array<PlanChange>
+})
+
 const AddDependency = Effect.fnUntraced(function*(edit: Case<"AddDependency">) {
   const plan = yield* loadPlan(edit.project)
   yield* plan.require(edit.step)
@@ -296,7 +320,16 @@ const RemoveDependency = Effect.fnUntraced(function*(edit: Case<"RemoveDependenc
 export const editPlan = Effect.fn("editPlan")(function*(edit: PlanEdit) {
   const sql = yield* SqlClient.SqlClient
   return yield* sql.withTransaction(
-    Match.valueTags(edit, { AddStep, RewriteStep, SplitStep, DropStep, AddDependency, RemoveDependency })
+    Match.valueTags(edit, {
+      AddStep,
+      RewriteStep,
+      SplitStep,
+      DropStep,
+      HoldStep,
+      ReleaseStep,
+      AddDependency,
+      RemoveDependency
+    })
   )
 })
 

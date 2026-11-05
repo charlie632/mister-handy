@@ -10,7 +10,7 @@ INSERT INTO project_reference VALUES
   ('chase-2146', 'Design doc (Revised design, Implementation notes)', 'https://claude.ai/artifact/JmAthWKDdCUo7c6GmEcPCU'),
   ('chase-2146', 'Jira epic CHASE-2146', 'https://cerby.atlassian.net/browse/CHASE-2146');
 
-INSERT INTO plan_step VALUES
+INSERT INTO plan_step (project_slug, step_id, title, ticket_key, position, closed_as, closed_at) VALUES
   ('chase-2146', 'route-readers',      'Route readers that bypass the applications aggregate through it',            'CHASE-2148', 1, NULL, NULL),
   ('chase-2146', 'require-viewer',     'Make a viewer argument required on every application read',                   'CHASE-2149', 2, NULL, NULL),
   ('chase-2146', 'unique-name',        'Make applications.name unique in the database',                               'CHASE-2147', 3, NULL, NULL),

@@ -151,7 +151,9 @@ const why = (node: StepNode, dependencies: ReadonlyArray<StepNode>): string => {
           : "")
     }
     case "NeedsYou":
-      return newest?.state === "Waiting"
+      return node.step.heldFor !== undefined
+        ? `The coordinator is holding it until you decide: ${node.step.heldFor}`
+        : newest?.state === "Waiting"
         ? "Its newest thread asked you something and has no open pull request."
         : newest?.state === "Failed"
         ? "Its newest thread failed without opening a pull request."

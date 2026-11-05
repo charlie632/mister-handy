@@ -43,6 +43,8 @@ const poster = Effect.all({ environmentId: localEnvironmentId, threadId: t3Threa
 const describe = Match.type<PlanChange>().pipe(Match.tagsExhaustive({
   StepAdded: ({ step, position }) => `Added step ${step} at position ${position}.`,
   StepRewritten: ({ step }) => `Rewrote step ${step}.`,
+  StepHeld: ({ step, reason }) => `Held step ${step} on: ${reason}`,
+  StepReleased: ({ step }) => `Released step ${step}.`,
   StepClosed: ({ step, closedAs, ticket }) =>
     closedAs === "Done"
       ? `Marked step ${step} Done.`
@@ -190,9 +192,33 @@ const stepDrop = Command.make(
   })
 ).pipe(Command.withDescription("Mark a step Dropped. What waited on it waits on its dependencies instead"))
 
+const stepHold = Command.make(
+  "hold",
+  {
+    step: stepArgument,
+    reason: Flag.String("reason").pipe(
+      Flag.withSchema(Schema.NonEmptyString),
+      Flag.withDescription("The decision the user has to make, shown on the project page")
+    )
+  },
+  Effect.fnUntraced(function*({ step, reason }) {
+    const { project } = yield* stepGroup
+    yield* reportPlan(yield* editPlan(PlanEdit.cases.HoldStep.make({ project, step, reason })))
+  })
+).pipe(Command.withDescription("Hold a step on a decision only the user can make. It reads Needs you until released"))
+
+const stepRelease = Command.make(
+  "release",
+  { step: stepArgument },
+  Effect.fnUntraced(function*({ step }) {
+    const { project } = yield* stepGroup
+    yield* reportPlan(yield* editPlan(PlanEdit.cases.ReleaseStep.make({ project, step })))
+  })
+).pipe(Command.withDescription("Release a held step once the user has decided"))
+
 const stepCommand = stepGroup.pipe(
-  Command.withDescription("Add, rewrite, split or drop plan steps"),
-  Command.withSubcommands([stepAdd, stepRewrite, stepSplit, stepDrop]),
+  Command.withDescription("Add, rewrite, split, drop, hold or release plan steps"),
+  Command.withSubcommands([stepAdd, stepRewrite, stepSplit, stepDrop, stepHold, stepRelease]),
   Command.provide(layer)
 )
 

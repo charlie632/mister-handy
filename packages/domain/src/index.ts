@@ -50,7 +50,9 @@ export const PlanStep = Schema.Struct({
   title: Schema.NonEmptyString,
   ticket: Schema.NullOr(TicketKey),
   dependsOn: Schema.Array(PlanStepId),
-  closedAs: Schema.optionalKey(ClosedAs)
+  closedAs: Schema.optionalKey(ClosedAs),
+  /** The decision the coordinator is waiting on the user for. Set, the step reads Needs you. */
+  heldFor: Schema.optionalKey(Schema.NonEmptyString)
 })
 export type PlanStep = typeof PlanStep.Type
 
@@ -138,6 +140,9 @@ export const PlanEdit = Schema.TaggedUnion({
   SplitStep: { project: ProjectSlug, step: PlanStepId, parts: Schema.NonEmptyArray(NewStep) },
   /** Marks the step Dropped. What waited on it waits on its dependencies instead. */
   DropStep: { project: ProjectSlug, step: PlanStepId },
+  /** Holds the step on a decision only the user can make, until it's released. Rerunning replaces the reason. */
+  HoldStep: { project: ProjectSlug, step: PlanStepId, reason: Schema.NonEmptyString },
+  ReleaseStep: { project: ProjectSlug, step: PlanStepId },
   AddDependency: { project: ProjectSlug, step: PlanStepId, on: PlanStepId },
   RemoveDependency: { project: ProjectSlug, step: PlanStepId, on: PlanStepId }
 })
@@ -147,6 +152,8 @@ export type PlanEdit = typeof PlanEdit.Type
 export type PlanChange =
   | { readonly _tag: "StepAdded"; readonly step: PlanStepId; readonly position: number }
   | { readonly _tag: "StepRewritten"; readonly step: PlanStepId }
+  | { readonly _tag: "StepHeld"; readonly step: PlanStepId; readonly reason: string }
+  | { readonly _tag: "StepReleased"; readonly step: PlanStepId }
   | { readonly _tag: "StepClosed"; readonly step: PlanStepId; readonly closedAs: ClosedAs; readonly ticket: TicketKey | null }
   | { readonly _tag: "DependencyAdded"; readonly dependency: Dependency }
   | { readonly _tag: "DependencyRemoved"; readonly dependency: Dependency }
@@ -211,6 +218,7 @@ const ownState = (
 ): StepState | undefined => {
   if (step.closedAs !== undefined) return step.closedAs
   if (pullRequests.length > 0 && pullRequests.every((pr) => pr.state === "Merged")) return "Merged"
+  if (step.heldFor !== undefined) return "NeedsYou"
   if (newestThread?.state === "Running") return "Working"
   if (pullRequests.some((pr) => pr.state === "Open" || pr.state === "Draft")) return "InReview"
   switch (newestThread?.state) {
