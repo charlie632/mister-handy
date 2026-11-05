@@ -4,6 +4,7 @@ import { isFinished, PlanStepId, ProjectSlug, type StepNode, threadDeepLink } fr
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
 import { Option, Schema } from "effect"
 import { type CSSProperties, Suspense } from "react"
+import { PanelToggle, RightPanel } from "../panel.tsx"
 import { closeStepAtom, projectAtom } from "../projects.ts"
 import { jiraUrl, Nav, prNumber, StatePill, StepGraph, stateColor, stateLabel, yourTurn } from "../ui.tsx"
 
@@ -29,15 +30,21 @@ function ProjectPage() {
 function ProjectContent() {
   const { projectSlug } = Route.useParams()
   const { step } = Route.useSearch()
+  const navigate = Route.useNavigate()
   const { value: view } = useAtomSuspense(projectAtom(projectSlug))
   if (view === null) {
     return <main><Nav /><p>No project called {projectSlug}.</p></main>
   }
   const { project, steps } = view
   const waiting = yourTurn(steps)
-  const selected = steps.find((node) => node.step.id === step) ?? waiting[0] ?? steps[0]
+  const selected = steps.find((node) => node.step.id === step)
+  const select = (id: PlanStepId | undefined) =>
+    navigate({ search: id === undefined ? {} : { step: id }, replace: true, resetScroll: false })
+  const fallback = waiting[0] ?? steps[0]
 
   return (
+    <div className="workspace">
+    <div className="workspace-main">
     <main>
       <Nav project={project} />
       <div className="head">
@@ -50,7 +57,15 @@ function ProjectContent() {
             {view.observedAt ? `observed ${view.observedAt.slice(11, 16)} UTC` : "not observed yet"}
           </div>
         </div>
-        <span className="pill">{project.state}</span>
+        <div className="head-actions">
+          <span className="pill">{project.state}</span>
+          {fallback && (
+            <PanelToggle
+              open={selected !== undefined}
+              onToggle={() => select(selected === undefined ? fallback.step.id : undefined)}
+            />
+          )}
+        </div>
       </div>
 
       <div className="row">
@@ -90,8 +105,21 @@ function ProjectContent() {
           : <StepGraph slug={project.slug} steps={steps} selected={selected?.step.id} />}
       </div>
 
-      {selected && <StepDetail view={view} node={selected} />}
     </main>
+    </div>
+      <RightPanel
+        open={selected !== undefined}
+        onClose={() => select(undefined)}
+        title={selected && (
+          <>
+            <span className="mono" style={{ fontWeight: 600 }}>{selected.step.ticket ?? "no ticket"}</span>
+            <StatePill state={selected.state} />
+          </>
+        )}
+      >
+        {selected && <StepDetail view={view} node={selected} />}
+      </RightPanel>
+    </div>
   )
 }
 
@@ -148,11 +176,8 @@ function StepDetail({ view, node }: { view: ProjectView; node: StepNode }) {
   const closeAs = (closedAs: "Done" | "Dropped") => close({ project: view.project.slug, stepId: node.step.id, closedAs })
 
   return (
-    <div className="box detail">
-      <div className="head">
-        <div><span className="mono" style={{ fontWeight: 600 }}>{node.step.ticket ?? "no ticket"}</span> · {node.step.title}</div>
-        <StatePill state={node.state} />
-      </div>
+    <div className="detail">
+      <h3 className="detail-title">{node.step.title}</h3>
       <div className="why">{why(node, dependencies)}</div>
       <dl className="kv">
         <dt>Depends on</dt>
@@ -180,7 +205,7 @@ function StepDetail({ view, node }: { view: ProjectView; node: StepNode }) {
           <ul>
             {node.pullRequests.length === 0 ? <li className="muted">None</li> : node.pullRequests.map((pr) => (
               <li key={pr.url}>
-                <a href={pr.url}>{prNumber(pr.url)}</a> <span className="muted">· {pr.state ?? "not observed"}</span>
+                <a href={pr.url} target="_blank" rel="noreferrer">{prNumber(pr.url)}</a> <span className="muted">· {pr.state ?? "not observed"}</span>
               </li>
             ))}
           </ul>
@@ -200,7 +225,7 @@ function StepDetail({ view, node }: { view: ProjectView; node: StepNode }) {
       </dl>
       <div className="btns">
         {node.state === "InReview" && openPr
-          ? <a className="btn" href={openPr.url}>Open PR</a>
+          ? <a className="btn" href={openPr.url} target="_blank" rel="noreferrer">Open PR</a>
           : newest && <a className="btn" href={threadDeepLink(newest)}>Open thread</a>}
         {node.state === "Merged" && <button type="button" className="btn" onClick={() => closeAs("Done")}>Mark done</button>}
         {!closed && (
