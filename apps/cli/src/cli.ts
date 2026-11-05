@@ -22,7 +22,7 @@ import {
   ThreadId,
   TicketKey
 } from "@mister-handy/domain"
-import { Config, Console, Data, Effect, FileSystem, Match, Option, Runtime, Schema } from "effect"
+import { Config, Console, Data, Effect, FileSystem, Match, Option, Runtime, Schema, type Types } from "effect"
 import { Argument, CliError, Command, Flag } from "effect/cli"
 import { ChildProcess, ChildProcessSpawner } from "effect/process"
 import { fileURLToPath } from "node:url"
@@ -159,16 +159,13 @@ const stepRewrite = Command.make(
       return yield* new CliError.UserError({ cause: null, userMessage: "step rewrite needs --title or --ticket." })
     }
 
-    yield* reportPlan(
-      yield* editPlan(
-        PlanEdit.cases.RewriteStep.make({
-          project,
-          step,
-          ...(Option.isSome(title) ? { title: title.value } : {}),
-          ...(Option.isSome(ticket) ? { ticket: ticket.value } : {})
-        })
-      )
-    )
+    const rewrite: Types.Mutable<Parameters<typeof PlanEdit.cases.RewriteStep.make>[0]> = { project, step }
+
+    if (Option.isSome(title)) rewrite.title = title.value
+
+    if (Option.isSome(ticket)) rewrite.ticket = ticket.value
+
+    yield* reportPlan(yield* editPlan(PlanEdit.cases.RewriteStep.make(rewrite)))
   })
 ).pipe(Command.withDescription("Change a step's title or ticket"))
 
@@ -284,12 +281,15 @@ const started = Command.make(
   Effect.fnUntraced(function* ({ project, step, environment, thread, title }) {
     const environmentId = Option.isSome(environment) ? environment.value : yield* localEnvironmentId
 
-    const update = StatusUpdate.cases.StepStarted.make({
+    const started: Types.Mutable<Parameters<typeof StatusUpdate.cases.StepStarted.make>[0]> = {
       project,
       stepId: step,
-      thread: { environmentId, threadId: thread },
-      ...(Option.isSome(title) ? { title: title.value } : {})
-    })
+      thread: { environmentId, threadId: thread }
+    }
+
+    if (Option.isSome(title)) started.title = title.value
+
+    const update = StatusUpdate.cases.StepStarted.make(started)
 
     const recorded = yield* recordStatusUpdate(update, yield* poster)
     yield* report(recorded ? [`Recorded: step ${step} started in thread ${environmentId}/${thread}.`] : [])

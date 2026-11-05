@@ -3,7 +3,7 @@ import type { ProjectView } from "@mister-handy/db"
 import { isFinished, PlanStepId, ProjectSlug, type StepNode, threadDeepLink } from "@mister-handy/domain"
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
 import { Option, Schema } from "effect"
-import { type CSSProperties, Suspense } from "react"
+import { Suspense } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { panelToggleProps, RightPanel } from "../panel.tsx"
@@ -145,7 +145,7 @@ function ProjectContent() {
               <h2 style={{ margin: 0 }}>Step graph</h2>
               <div className="legend">
                 {(["Blocked", "Ready", "Working", "NeedsYou", "InReview", "Merged"] as const).map((state) => (
-                  <span key={state} style={{ "--c": stateColor[state] } as CSSProperties}>
+                  <span key={state} style={{ "--c": stateColor[state] }}>
                     {stateLabel(state)}
                   </span>
                 ))}
@@ -210,7 +210,7 @@ function PlanDetail({ slug }: { slug: ProjectSlug }) {
     <div className="markdown">
       <Markdown
         remarkPlugins={[remarkGfm]}
-        components={{ a: ({ node: _, ...props }) => <a {...props} target="_blank" rel="noreferrer" /> }}
+        components={{ a: ({ node, ...props }) => <a {...props} target="_blank" rel="noreferrer" /> }}
       >
         {plan}
       </Markdown>
@@ -265,7 +265,7 @@ const why = (node: StepNode, dependencies: ReadonlyArray<StepNode>): string => {
         ? "It depends on nothing and no thread has started. The coordinator can hand it out."
         : `Everything it depends on is merged or done (${join(dependencies.map((d) => d.step.ticket ?? d.step.id))}). No thread has started. The coordinator can hand it out.`
     case "Blocked":
-      return `Waiting on ${join(dependencies.filter((d) => !isFinished(d.state)).map((d) => `${d.step.ticket ?? d.step.id} (${stateLabel(d.state)})`))}.`
+      return `Waiting on ${join(dependencies.flatMap((d) => (isFinished(d.state) ? [] : [`${d.step.ticket ?? d.step.id} (${stateLabel(d.state)})`])))}.`
   }
 }
 

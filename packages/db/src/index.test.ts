@@ -19,12 +19,17 @@ import {
   applySchema,
   closeStep,
   createProject,
+  DependencyCycle,
   editPlan,
+  LinkedElsewhere,
   listProjects,
   type ProjectView,
   readProject,
   recordStatusUpdate,
-  runScript
+  runScript,
+  StepExists,
+  TicketTaken,
+  UnknownStep
 } from "./index.ts"
 
 const withDatabase =
@@ -193,7 +198,8 @@ describe("plan edits", () => {
           )
         )
 
-        expect(step).toMatchObject({ _tag: "StepExists", title: "First" })
+        expect(step).toBeInstanceOf(StepExists)
+        expect(step).toMatchObject({ title: "First" })
       })
     )
   )
@@ -214,7 +220,8 @@ describe("plan edits", () => {
           )
         )
 
-        expect(error).toMatchObject({ _tag: "TicketTaken", step: "route-readers" })
+        expect(error).toBeInstanceOf(TicketTaken)
+        expect(error).toMatchObject({ step: "route-readers" })
         expect(node(yield* readProject(slug), "new")).toBeUndefined()
       })
     )
@@ -235,8 +242,8 @@ describe("plan edits", () => {
           )
         )
 
+        expect(error).toBeInstanceOf(DependencyCycle)
         expect(error).toMatchObject({
-          _tag: "DependencyCycle",
           path: [
             "route-readers",
             "require-viewer",
@@ -409,8 +416,9 @@ describe("plan edits", () => {
 
         expect(project._tag).toBe("UnknownProject")
         const step = yield* Effect.flip(editPlan(PlanEdit.cases.DropStep.make({ project: slug, step: id("nope") })))
-        expect(step).toMatchObject({ _tag: "UnknownStep", step: "nope" })
-        expect(step._tag === "UnknownStep" ? step.known : []).toHaveLength(10)
+        expect(step).toBeInstanceOf(UnknownStep)
+        expect(step).toMatchObject({ step: "nope" })
+        expect(step instanceof UnknownStep ? step.known : []).toHaveLength(10)
       })
     )
   )
@@ -498,7 +506,8 @@ describe("status updates", () => {
       Effect.gen(function* () {
         yield* recordStatusUpdate(started("cache-by-viewer"), null)
         const error = yield* Effect.flip(recordStatusUpdate(started("draft-access-rows"), null))
-        expect(error).toMatchObject({ _tag: "LinkedElsewhere", step: "cache-by-viewer" })
+        expect(error).toBeInstanceOf(LinkedElsewhere)
+        expect(error).toMatchObject({ step: "cache-by-viewer" })
         expect(yield* statusRows).toHaveLength(1)
         expect(node(yield* readProject(slug), "draft-access-rows")?.threads).toEqual([])
       })

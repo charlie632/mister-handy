@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Data, Schema } from "effect"
 
 export const ProjectSlug = Schema.String.pipe(
   Schema.check(Schema.isPattern(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)),
@@ -170,19 +170,17 @@ export const PlanEdit = Schema.TaggedUnion({
 export type PlanEdit = typeof PlanEdit.Type
 
 /** What an edit actually changed. An empty list means the plan already looked like that. */
-export type PlanChange =
-  | { readonly _tag: "StepAdded"; readonly step: PlanStepId; readonly position: number }
-  | { readonly _tag: "StepRewritten"; readonly step: PlanStepId }
-  | { readonly _tag: "StepHeld"; readonly step: PlanStepId; readonly reason: string }
-  | { readonly _tag: "StepReleased"; readonly step: PlanStepId }
-  | {
-      readonly _tag: "StepClosed"
-      readonly step: PlanStepId
-      readonly closedAs: ClosedAs
-      readonly ticket: TicketKey | null
-    }
-  | { readonly _tag: "DependencyAdded"; readonly dependency: Dependency }
-  | { readonly _tag: "DependencyRemoved"; readonly dependency: Dependency }
+export type PlanChange = Data.TaggedEnum<{
+  StepAdded: { readonly step: PlanStepId; readonly position: number }
+  StepRewritten: { readonly step: PlanStepId }
+  StepHeld: { readonly step: PlanStepId; readonly reason: string }
+  StepReleased: { readonly step: PlanStepId }
+  StepClosed: { readonly step: PlanStepId; readonly closedAs: ClosedAs; readonly ticket: TicketKey | null }
+  DependencyAdded: { readonly dependency: Dependency }
+  DependencyRemoved: { readonly dependency: Dependency }
+}>
+
+export const PlanChange = Data.taggedEnum<PlanChange>()
 
 /**
  * The cycle that adding `edge` would close, as [edge.after, ..., edge.before, edge.after] in the direction

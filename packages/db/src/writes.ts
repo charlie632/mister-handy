@@ -4,7 +4,7 @@ import {
   EnvironmentId,
   findCycle,
   type NewStep,
-  type PlanChange,
+  PlanChange,
   type PlanEdit,
   PlanStepId,
   ProjectSlug,
@@ -191,7 +191,7 @@ const insertStep = Effect.fnUntraced(function* (
     INSERT INTO plan_step (project_slug, step_id, title, ticket_key, position)
     VALUES (${project}, ${step.id}, ${step.title}, ${ticket}, ${position})`
 
-  return { _tag: "StepAdded", step: step.id, position } satisfies PlanChange
+  return PlanChange.StepAdded({ step: step.id, position })
 })
 
 const addEdges = Effect.fnUntraced(function* (
@@ -210,7 +210,7 @@ const addEdges = Effect.fnUntraced(function* (
     if (path !== null) return yield* new DependencyCycle({ path })
     yield* sql`INSERT INTO dependency VALUES (${project}, ${edge.before}, ${edge.after})`
     edges.push(edge)
-    changes.push({ _tag: "DependencyAdded", dependency: edge })
+    changes.push(PlanChange.DependencyAdded({ dependency: edge }))
   }
 
   return changes
@@ -261,7 +261,7 @@ const RewriteStep = Effect.fnUntraced(function* (edit: Case<"RewriteStep">) {
     UPDATE plan_step SET title = ${title}, ticket_key = ${ticket}
     WHERE project_slug = ${edit.project} AND step_id = ${edit.step}`
 
-  return [{ _tag: "StepRewritten", step: edit.step }] satisfies Array<PlanChange>
+  return [PlanChange.StepRewritten({ step: edit.step })]
 })
 
 const SplitStep = Effect.fnUntraced(function* (edit: Case<"SplitStep">) {
@@ -318,9 +318,7 @@ const HoldStep = Effect.fnUntraced(function* (edit: Case<"HoldStep">) {
     WHERE project_slug = ${edit.project} AND step_id = ${edit.step} AND held_for IS NOT ${edit.reason}
     RETURNING 1`
 
-  return held.length === 0
-    ? []
-    : ([{ _tag: "StepHeld", step: edit.step, reason: edit.reason }] satisfies Array<PlanChange>)
+  return held.length === 0 ? [] : [PlanChange.StepHeld({ step: edit.step, reason: edit.reason })]
 })
 
 const ReleaseStep = Effect.fnUntraced(function* (edit: Case<"ReleaseStep">) {
@@ -333,7 +331,7 @@ const ReleaseStep = Effect.fnUntraced(function* (edit: Case<"ReleaseStep">) {
     WHERE project_slug = ${edit.project} AND step_id = ${edit.step} AND held_for IS NOT NULL
     RETURNING 1`
 
-  return released.length === 0 ? [] : ([{ _tag: "StepReleased", step: edit.step }] satisfies Array<PlanChange>)
+  return released.length === 0 ? [] : [PlanChange.StepReleased({ step: edit.step })]
 })
 
 const AddDependency = Effect.fnUntraced(function* (edit: Case<"AddDependency">) {
@@ -357,7 +355,7 @@ const RemoveDependency = Effect.fnUntraced(function* (edit: Case<"RemoveDependen
 
   return removed.length === 0
     ? []
-    : ([{ _tag: "DependencyRemoved", dependency: { before: edit.on, after: edit.step } }] satisfies Array<PlanChange>)
+    : [PlanChange.DependencyRemoved({ dependency: { before: edit.on, after: edit.step } })]
 })
 
 /**
@@ -407,7 +405,7 @@ export const closeStep = Effect.fn("closeStep")(function* ({ project, stepId, cl
       )
 
       if (closed === undefined) return []
-      const changes: Array<PlanChange> = [{ _tag: "StepClosed", step: stepId, closedAs, ticket: closed.ticket }]
+      const changes: Array<PlanChange> = [PlanChange.StepClosed({ step: stepId, closedAs, ticket: closed.ticket })]
 
       if (closedAs === "Dropped") {
         const removed = yield* decodeAll(Dependency)(
@@ -417,14 +415,14 @@ export const closeStep = Effect.fn("closeStep")(function* ({ project, stepId, cl
           RETURNING before_step AS before, after_step AS after`
         )
 
-        changes.push(...removed.map((dependency) => ({ _tag: "DependencyRemoved", dependency }) as const))
+        changes.push(...removed.map((dependency) => PlanChange.DependencyRemoved({ dependency })))
 
         for (const { before } of removed.filter((e) => e.after === stepId)) {
           for (const { after } of removed.filter((e) => e.before === stepId)) {
             const added = yield* sql`
             INSERT OR IGNORE INTO dependency VALUES (${project}, ${before}, ${after}) RETURNING 1`
 
-            if (added.length > 0) changes.push({ _tag: "DependencyAdded", dependency: { before, after } })
+            if (added.length > 0) changes.push(PlanChange.DependencyAdded({ dependency: { before, after } }))
           }
         }
       }

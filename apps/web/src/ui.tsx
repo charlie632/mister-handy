@@ -12,8 +12,18 @@ export const stateColor: Record<StepState, string> = {
   Dropped: "var(--muted-foreground)"
 }
 
-export const stateLabel = (state: StepState): string =>
-  state === "NeedsYou" ? "Needs you" : state === "InReview" ? "In review" : state
+const stateLabels: Record<StepState, string> = {
+  Blocked: "Blocked",
+  Ready: "Ready",
+  Working: "Working",
+  NeedsYou: "Needs you",
+  InReview: "In review",
+  Merged: "Merged",
+  Done: "Done",
+  Dropped: "Dropped"
+}
+
+export const stateLabel = (state: StepState): string => stateLabels[state]
 
 export const yourTurn = (steps: ReadonlyArray<StepNode>) =>
   steps.filter((node) => node.state === "NeedsYou" || node.state === "InReview" || node.state === "Ready")
@@ -187,4 +197,11 @@ export const StepGraph = ({
       })}
     </svg>
   )
+}
+
+declare module "react" {
+  interface CSSProperties {
+    /** The legend's swatch color, read by `.legend span` in styles.css. */
+    "--c"?: string
+  }
 }

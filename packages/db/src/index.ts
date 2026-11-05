@@ -4,6 +4,7 @@ import {
   ClosedAs,
   deriveStepNodes,
   EnvironmentId,
+  type PlanStep,
   PlanStepId,
   type Project,
   ProjectReference,
@@ -16,7 +17,7 @@ import {
   TicketKey,
   TicketObservation
 } from "@mister-handy/domain"
-import { Config, Data, Effect, Schema } from "effect"
+import { Config, Data, Effect, Schema, type Types } from "effect"
 import { SqlClient } from "effect/sql"
 import { mkdirSync } from "node:fs"
 import { readFile } from "node:fs/promises"
@@ -85,7 +86,7 @@ const addMissingColumns = (filename: string) =>
       Effect.try({
         try: () => {
           for (const { table, column, type } of addedColumns) {
-            const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+            const columns = db.prepare(`PRAGMA table_info(${table})`).all()
 
             if (!columns.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`)
           }
@@ -200,12 +201,18 @@ export const readProject = Effect.fn("readProject")(function* (slug: ProjectSlug
       )`
   )
 
-  const steps = stepRows.map(({ closedAs, heldFor, ...step }) => ({
-    ...step,
-    dependsOn: dependencies.filter((d) => d.after === step.id).map((d) => d.before),
-    ...(closedAs === null ? {} : { closedAs }),
-    ...(heldFor === null ? {} : { heldFor })
-  }))
+  const steps = stepRows.map(({ closedAs, heldFor, ...row }) => {
+    const step: Types.Mutable<PlanStep> = {
+      ...row,
+      dependsOn: dependencies.flatMap((d) => (d.after === row.id ? [d.before] : []))
+    }
+
+    if (closedAs !== null) step.closedAs = closedAs
+
+    if (heldFor !== null) step.heldFor = heldFor
+
+    return step
+  })
 
   const { environmentId, threadId, coordinatorTitle, ...project } = row
 
@@ -233,7 +240,7 @@ export const readPlan = (slug: ProjectSlug) =>
     catch: (cause) => new PlanReadError({ message: cause instanceof Error ? cause.message : String(cause), cause })
   }).pipe(
     Effect.catchIf(
-      (error) => (error.cause as NodeJS.ErrnoException | undefined)?.code === "ENOENT",
+      (error) => error.cause instanceof Error && "code" in error.cause && error.cause.code === "ENOENT",
       () => Effect.succeed(null)
     )
   )
