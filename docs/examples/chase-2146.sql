@@ -33,7 +33,7 @@ INSERT INTO dependency VALUES
   ('chase-2146', 'rule-reads-access', 'draft-access-rows'),  -- stated: Option 2 order
   ('chase-2146', 'draft-access-rows', 'promote-or-share');   -- stated: Option 2 order
 
-INSERT INTO step_thread VALUES
+INSERT INTO step_thread (project_slug, step_id, env_id, thread_id, started_at) VALUES
   ('chase-2146', 'route-readers',     '3f5a1a0c-10ca-4c98-afdc-8bcc9e3a3b30', 'thread:delegated-task:command%3Amcp%3A4a98bbb9-64a7-4ae6-a3b8-6129a1424e15%3Adelegate-task%3A2b580467-f2ad-4d19-b611-09d8c99bff1f', '2026-11-03T15:13:47Z'),
   ('chase-2146', 'require-viewer',    '3f5a1a0c-10ca-4c98-afdc-8bcc9e3a3b30', 'thread:delegated-task:command%3Amcp%3A4a98bbb9-64a7-4ae6-a3b8-6129a1424e15%3Adelegate-task%3A5f210a10-168e-49a4-9737-5ba8438c7a0d', '2026-11-03T15:50:33Z'),
   ('chase-2146', 'require-viewer',    '3f5a1a0c-10ca-4c98-afdc-8bcc9e3a3b30', 'thread:delegated-task:command%3Amcp%3A4cf384b3-5ea0-4c87-8384-1e6e7a8335b2%3Adelegate-task%3A87549a45-7a3f-4da9-b425-5d474426b6be', '2026-11-03T18:51:52Z'),

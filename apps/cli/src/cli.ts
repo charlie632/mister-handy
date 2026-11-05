@@ -230,14 +230,20 @@ const started = Command.make(
     project: projectFlag,
     step: stepFlag("step"),
     environment: Flag.String("environment").pipe(Flag.withSchema(EnvironmentId), Flag.optional),
-    thread: Flag.String("thread").pipe(Flag.withSchema(ThreadId))
+    thread: Flag.String("thread").pipe(Flag.withSchema(ThreadId)),
+    title: Flag.String("title").pipe(
+      Flag.withSchema(Schema.NonEmptyString),
+      Flag.withDescription("The title the thread was launched with, shown on the project page"),
+      Flag.optional
+    )
   },
-  Effect.fnUntraced(function*({ project, step, environment, thread }) {
+  Effect.fnUntraced(function*({ project, step, environment, thread, title }) {
     const environmentId = Option.isSome(environment) ? environment.value : yield* localEnvironmentId
     const update = StatusUpdate.cases.StepStarted.make({
       project,
       stepId: step,
-      thread: { environmentId, threadId: thread }
+      thread: { environmentId, threadId: thread },
+      ...(Option.isSome(title) ? { title: title.value } : {})
     })
     const recorded = yield* recordStatusUpdate(update, yield* poster)
     yield* report(recorded ? [`Recorded: step ${step} started in thread ${environmentId}/${thread}.`] : [])

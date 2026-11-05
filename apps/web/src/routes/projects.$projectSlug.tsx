@@ -52,7 +52,7 @@ function ProjectContent() {
           <h1>{project.name}</h1>
           <div className="muted" style={{ fontSize: 12 }}>
             {project.coordinator && (
-              <>Coordinator <a href={threadDeepLink(project.coordinator)}>{view.coordinatorTitle ?? "thread"}</a> · </>
+              <>Coordinator <a href={threadDeepLink(project.coordinator)}>{view.coordinatorTitle ?? `Coordinator: ${project.name}`}</a> · </>
             )}
             {view.observedAt ? `observed ${view.observedAt.slice(11, 16)} UTC` : "not observed yet"}
           </div>

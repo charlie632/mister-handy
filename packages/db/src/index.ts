@@ -66,7 +66,28 @@ export const runScript = (filename: string, script: string) =>
     (db) => Effect.sync(() => db.close())
   )
 
-export const applySchema = (filename: string) => runScript(filename, schema)
+/** Columns added after their table first shipped. CREATE TABLE IF NOT EXISTS never adds them to an old table. */
+const addedColumns: ReadonlyArray<{ readonly table: string; readonly column: string; readonly type: string }> = [
+  { table: "step_thread", column: "title", type: "TEXT" }
+]
+
+const addMissingColumns = (filename: string) =>
+  Effect.acquireUseRelease(
+    Effect.try({ try: () => new DatabaseSync(filename), catch: scriptError }),
+    (db) =>
+      Effect.try({
+        try: () => {
+          for (const { table, column, type } of addedColumns) {
+            const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+            if (!columns.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`)
+          }
+        },
+        catch: scriptError
+      }),
+    (db) => Effect.sync(() => db.close())
+  )
+
+export const applySchema = (filename: string) => Effect.andThen(runScript(filename, schema), addMissingColumns(filename))
 
 export interface ProjectView {
   readonly project: Project
@@ -127,7 +148,7 @@ export const readProject = Effect.fn("readProject")(function*(slug: ProjectSlug)
   const threads = yield* decodeAll(StepThread)(
     yield* sql`
       SELECT t.step_id AS "stepId", t.env_id AS "environmentId", t.thread_id AS "threadId",
-             t.started_at AS "startedAt", o.state, o.title
+             t.started_at AS "startedAt", o.state, COALESCE(o.title, t.title) AS title
       FROM step_thread t
       LEFT JOIN thread_observation o USING (env_id, thread_id)
       WHERE t.project_slug = ${slug}`

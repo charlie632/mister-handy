@@ -405,13 +405,15 @@ export const recordStatusUpdate = Effect.fn("recordStatusUpdate")(function*(
     yield* plan.require(update.stepId)
     const receivedAt = yield* now
     const link = Match.valueTags(update, {
-      StepStarted: ({ thread, thread: { environmentId, threadId } }) => ({
+      StepStarted: ({ thread, thread: { environmentId, threadId }, title }) => ({
         ref: thread,
         id: `${environmentId}/${threadId}`,
+        // A repost can name a thread that was linked without one; it never clears a name.
         insert: sql`
-          INSERT INTO step_thread (project_slug, step_id, env_id, thread_id, started_at)
-          VALUES (${update.project}, ${update.stepId}, ${environmentId}, ${threadId}, ${receivedAt})
-          ON CONFLICT (env_id, thread_id) DO NOTHING`,
+          INSERT INTO step_thread (project_slug, step_id, env_id, thread_id, started_at, title)
+          VALUES (${update.project}, ${update.stepId}, ${environmentId}, ${threadId}, ${receivedAt}, ${title ?? null})
+          ON CONFLICT (env_id, thread_id) DO UPDATE SET title = COALESCE(excluded.title, step_thread.title)
+          WHERE step_thread.project_slug = excluded.project_slug AND step_thread.step_id = excluded.step_id`,
         owner: sql`
           SELECT project_slug AS project, step_id AS step FROM step_thread
           WHERE env_id = ${environmentId} AND thread_id = ${threadId}`

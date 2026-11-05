@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS step_thread (
   env_id          TEXT NOT NULL,
   thread_id       TEXT NOT NULL,
   started_at      TEXT NOT NULL,
+  title           TEXT,
   PRIMARY KEY (env_id, thread_id),
   FOREIGN KEY (project_slug, step_id) REFERENCES plan_step(project_slug, step_id)
 );

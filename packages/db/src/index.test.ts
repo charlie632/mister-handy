@@ -281,6 +281,32 @@ describe("status updates", () => {
       ])
     })))
 
+  it.effect("shows the title a thread was launched with, and a repost can name an unnamed thread", () =>
+    withChase2146(Effect.gen(function*() {
+      const titleOf = Effect.map(readProject(slug), (view) => node(view, "cache-by-viewer")?.threads[0]?.title)
+      yield* recordStatusUpdate(started("cache-by-viewer"), null)
+      expect(yield* titleOf).toBeNull()
+      const named = StatusUpdate.cases.StepStarted.make({ ...started("cache-by-viewer"), title: "CHASE-2153: Cache by viewer" })
+      expect(yield* recordStatusUpdate(named, null), "same link, so still a retry").toBe(false)
+      expect(yield* titleOf).toBe("CHASE-2153: Cache by viewer")
+      yield* recordStatusUpdate(started("cache-by-viewer"), null)
+      expect(yield* titleOf, "a repost without a title keeps it").toBe("CHASE-2153: Cache by viewer")
+    })))
+
+  it.effect("adds the title column to a step_thread table made before it existed", () => {
+    const filename = join(mkdtempSync(join(tmpdir(), "mr-handy-")), "old.db")
+    return Effect.gen(function*() {
+      yield* runScript(filename, `CREATE TABLE step_thread (
+        project_slug TEXT NOT NULL, step_id TEXT NOT NULL, env_id TEXT NOT NULL,
+        thread_id TEXT NOT NULL, started_at TEXT NOT NULL, PRIMARY KEY (env_id, thread_id))`)
+      yield* applySchema(filename)
+      yield* applySchema(filename)
+      const sql = yield* SqlClient.SqlClient
+      const columns = yield* sql<{ name: string }>`SELECT name FROM pragma_table_info('step_thread')`
+      expect(columns.map((c) => c.name)).toContain("title")
+    }).pipe(Effect.provide(SqliteClient.layer({ filename })))
+  })
+
   it.effect("puts a step with an open pull request in review", () =>
     withChase2146(Effect.gen(function*() {
       const sql = yield* SqlClient.SqlClient

@@ -74,7 +74,7 @@ Launch with:
 - `delegatedFrom` set to this thread. `title` set to `<TICKET>: <step title>`.
 - `message` set to the brief below.
 
-Right after the launch, run `mr-handy status started --project <slug> --step <step> --thread <new thread id>`.
+Right after the launch, run `mr-handy status started --project <slug> --step <step> --thread <new thread id> --title "<the title you launched it with>"`.
 
 The brief opens with `/poteto-mode` on its own line, then these sections:
 

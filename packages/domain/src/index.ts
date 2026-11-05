@@ -100,7 +100,13 @@ export const TicketObservation = Schema.Struct({
 export type TicketObservation = typeof TicketObservation.Type
 
 export const StatusUpdate = Schema.TaggedUnion({
-  StepStarted: { project: ProjectSlug, stepId: PlanStepId, thread: ThreadRef },
+  StepStarted: {
+    project: ProjectSlug,
+    stepId: PlanStepId,
+    thread: ThreadRef,
+    /** The title the thread was launched with. */
+    title: Schema.optionalKey(Schema.NonEmptyString)
+  },
   PullRequestOpened: { project: ProjectSlug, stepId: PlanStepId, url: Schema.URLFromString }
 })
 export type StatusUpdate = typeof StatusUpdate.Type
