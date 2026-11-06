@@ -13,7 +13,11 @@ catalog:
   "@types/node": 22.20.5
   "@types/react": 19.3.0
   "@types/react-dom": 19.3.0
+  "@types/d3-selection": 3.0.12
+  "@types/d3-zoom": 3.0.9
   "@vitejs/plugin-react": 6.2.1
+  d3-selection: 3.0.0
+  d3-zoom: 3.0.0
   effect: 4.1.2
   react: 19.3.1
   react-markdown: 10.1.0
@@ -23,3 +27,15 @@ catalog:
   typescript: 7.0.2
   vite: 8.3.5
   vitest: 5.1.0
+
+# The d3 suite republished every package on 2026-11-03 after five quiet years; hold the 2021-22 releases until those are vetted.
+overrides:
+  d3-color: 3.1.0
+  d3-dispatch: 3.0.1
+  d3-drag: 3.0.0
+  d3-ease: 3.0.1
+  d3-interpolate: 3.0.1
+  d3-selection: 3.0.0
+  d3-timer: 3.0.1
+  d3-transition: 3.0.1
+  d3-zoom: 3.0.0

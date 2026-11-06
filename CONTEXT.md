@@ -42,6 +42,10 @@ _Avoid_: Link, relation, stack, Jira Blocks
 A project's plan steps as nodes and its dependencies as edges. Each node shows its ticket key, its step state, and links to its thread or pull request.
 _Avoid_: Board, tree, DAG, ticket graph
 
+**Step list**:
+A project's plan steps as a table, with the steps that need the user first and Done or Dropped steps folded away. It shows the same steps and states as the step graph, so the user can scan state, pull requests and Jira status without opening each node.
+_Avoid_: Board, backlog, issue list, ticket list
+
 **Step state**:
 Where a plan step stands, worked out from its dependencies, its thread and its pull requests. Done is the one state the user sets by hand. A step is in exactly one of these states:
 
@@ -111,7 +115,7 @@ The one page that lists every project the user has. It's where the user starts.
 _Avoid_: Dashboard, My Work, overview, landing page
 
 **Project page**:
-The page for one project. It shows the project's step graph next to its plan and its epic.
+The page for one project. It shows the project's steps as a step list, or as a step graph on request, next to its plan and its epic.
 _Avoid_: Board, project view, graph page
 
 ## Storage

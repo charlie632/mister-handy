@@ -11,7 +11,7 @@
   --primary: #2563eb;
   --info: #0891b2;
   --success: #16a34a;
-  --warning: #c2410c;
+  --warning: #a16207;
   --destructive: #dc2626;
   --radius: 10px;
   --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -31,7 +31,7 @@
     --primary: #60a5fa;
     --info: #22d3ee;
     --success: #4ade80;
-    --warning: #fb923c;
+    --warning: #facc15;
     --destructive: #f87171;
   }
 }
@@ -99,9 +99,8 @@ ul {
   color: var(--foreground);
 }
 .nav a.on {
-  border-color: var(--border);
   color: var(--foreground);
-  background: var(--card);
+  font-weight: 600;
 }
 .brand {
   display: inline-flex;
@@ -139,13 +138,21 @@ ul {
   flex-wrap: wrap;
   gap: 8px;
 }
+/* A read-only label, drawn without a border so it doesn't pass for a button. */
 .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
   color: var(--muted-foreground);
   white-space: nowrap;
+}
+.pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 }
 .st {
   font: 600 11px var(--font-sans);
@@ -167,6 +174,8 @@ ul {
 }
 .kv dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .mono {
   font-family: var(--font-mono);
@@ -174,6 +183,9 @@ ul {
 }
 .muted {
   color: var(--muted-foreground);
+}
+.nowrap {
+  white-space: nowrap;
 }
 .flag {
   color: var(--destructive);
@@ -187,6 +199,9 @@ ul {
   font-size: 11px;
   color: var(--muted-foreground);
 }
+.legend span {
+  white-space: nowrap;
+}
 .legend span::before {
   content: "";
   display: inline-block;
@@ -197,15 +212,186 @@ ul {
   margin-right: 5px;
 }
 
-.graph {
-  padding: 12px 8px;
-  overflow-x: auto;
+.title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
-.graph svg {
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.meta > * + *::before {
+  content: "·";
+  margin: 0 7px;
+  color: var(--muted-foreground);
+}
+
+.steps-box {
+  padding: 12px 0 0;
+  overflow: hidden;
+}
+.steps-head {
+  display: flex;
+  align-items: center;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  padding: 0 16px 10px;
+}
+.steps-head h2 {
+  margin: 0;
+}
+.steps-head .legend {
+  flex: 1 1 auto;
+}
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.seg a {
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.seg a + a {
+  border-left: 1px solid var(--border);
+}
+.seg a:hover {
+  text-decoration: none;
+  color: var(--foreground);
+  background: var(--accent);
+}
+.seg a[aria-pressed="true"] {
+  color: var(--foreground);
+  background: var(--muted);
+  font-weight: 600;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border-top: 1px solid var(--border);
+}
+table.steps {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.steps th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  padding: 6px 10px;
+  background: var(--accent);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.steps td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.steps th:first-child,
+.steps td:first-child {
+  padding-left: 16px;
+  width: 1%;
+  white-space: nowrap;
+}
+.steps th:last-child,
+.steps td:last-child {
+  padding-right: 16px;
+}
+.steps tbody tr:not(.group) {
+  cursor: pointer;
+}
+.steps tbody tr:not(.group):hover {
+  background: var(--accent);
+}
+.steps tr.on {
+  background: var(--muted);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+.steps tr[data-closed] td {
+  color: var(--muted-foreground);
+}
+.steps .step-cell {
+  width: 45%;
+}
+.steps .step-cell > div {
+  margin-top: 2px;
+}
+.steps tbody:last-child tr:last-child td {
+  border-bottom: 0;
+}
+.steps tr.group td {
+  background: var(--accent);
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.flags {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  color: var(--destructive);
+  font-size: 11px;
+  font-weight: 600;
+}
+.link-btn {
+  font: inherit;
+  font-size: 12px;
+  color: var(--primary);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.steps-box .zoompan {
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+}
+.zoompan {
+  position: relative;
+  min-height: 280px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.zoompan svg {
   display: block;
   width: 100%;
-  height: auto;
-  min-width: 560px;
+  height: 100%;
+  cursor: grab;
+}
+.zoompan svg:active {
+  cursor: grabbing;
+}
+.zoompan svg a {
+  cursor: pointer;
+}
+.zoompan-controls {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 4px;
+}
+.zoompan-controls .btn {
+  background: var(--card);
+  min-width: 30px;
+}
+.zoompan-controls .btn:hover {
+  background: var(--accent);
 }
 svg text.k {
   font: 600 13px var(--font-mono);
@@ -224,6 +410,35 @@ svg text.m {
 }
 svg a:hover rect {
   fill: var(--accent);
+}
+svg a.closed {
+  opacity: 0.55;
+}
+svg a.closed:hover {
+  opacity: 1;
+}
+.edge {
+  fill: none;
+  stroke-width: 1.6;
+}
+.edge-done {
+  stroke: var(--border);
+  fill: var(--border);
+}
+.edge-live {
+  stroke: var(--muted-foreground);
+  fill: var(--muted-foreground);
+}
+.edge-on {
+  stroke: var(--foreground);
+  fill: var(--foreground);
+  stroke-width: 2.2;
+}
+path.edge {
+  fill: none;
+}
+marker path {
+  stroke: none;
 }
 
 .card {
@@ -271,6 +486,19 @@ svg a:hover rect {
   background: var(--accent);
   text-decoration: none;
 }
+.btn.primary {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
+}
+.btn.primary:hover {
+  background: var(--foreground);
+  opacity: 0.85;
+}
+.btn.danger {
+  margin-left: auto;
+  color: var(--destructive);
+}
 .btn:disabled {
   opacity: 0.5;
   cursor: default;
@@ -285,6 +513,10 @@ svg a:hover rect {
   flex: 1 1 auto;
   min-width: 0;
   overflow-y: auto;
+  scrollbar-width: thin;
+}
+.workspace main {
+  max-width: 1120px;
 }
 .head-actions {
   display: flex;

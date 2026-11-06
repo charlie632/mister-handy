@@ -14,6 +14,8 @@
     "@mister-handy/domain": "workspace:*",
     "@tanstack/react-router": "catalog:",
     "@tanstack/react-start": "catalog:",
+    "d3-selection": "catalog:",
+    "d3-zoom": "catalog:",
     "effect": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
@@ -22,6 +24,8 @@
     "scheduler": "catalog:"
   },
   "devDependencies": {
+    "@types/d3-selection": "catalog:",
+    "@types/d3-zoom": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
