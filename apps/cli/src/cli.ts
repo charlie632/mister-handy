@@ -50,7 +50,7 @@ const describe = Match.type<PlanChange>().pipe(
     StepClosed: ({ step, closedAs, ticket }) =>
       closedAs === "Done"
         ? `Marked step ${step} Done.`
-        : `Dropped step ${step}.${ticket === null ? "" : ` Close its ticket ${ticket} in Jira.`}`,
+        : `Dropped step ${step}.${ticket === null ? "" : ` Close its ticket ${ticket}.`}`,
     DependencyAdded: ({ dependency }) => `Added dependency: ${dependency.after} depends on ${dependency.before}.`,
     DependencyRemoved: ({ dependency }) => `Removed dependency: ${dependency.after} depends on ${dependency.before}.`
   })

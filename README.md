@@ -79,7 +79,30 @@ pnpm build
 mr-handy skill install                                       # symlinks skills/coordinator into ~/.claude/skills
 ```
 
-In a new T3 thread, `/coordinator <what the project should achieve>` starts a new project: it names it, plans it with `/poteto-mode` and mirrors the plan into the database. `/coordinator <slug>` resumes one from the database and its wiki under `~/.mr-handy/<slug>/`. [skills/coordinator/SKILL.md](skills/coordinator/SKILL.md) holds the rules, including what the coordinator may do without asking.
+In a new T3 thread, `/coordinator <what the project should achieve>` starts a new project: it names it, plans it and mirrors the plan into the database. `/coordinator <slug>` resumes one from the database and its wiki under `~/.mr-handy/<slug>/`. [skills/coordinator/SKILL.md](skills/coordinator/SKILL.md) holds the rules, including what the coordinator may do without asking.
+
+`~/.mr-handy/profile.md` holds your own way of working, and every coordinator reads it. It sets the branch template, the issue tracker, how plans get written, what opens every step thread's brief, the rules every step thread follows and what else to ask before doing. Without it a coordinator writes plans directly, uses no tracker and names branches `<type>/<ticket or step id>`. The skill's Profile section lists each key and section. For example:
+
+```md
+---
+branch: alice/{type}/{ticket}
+tracker: jira
+---
+
+## Planning
+
+Read ~/.claude/skills/planning/SKILL.md and follow it.
+
+## Step preamble
+
+/my-workflow
+
+## Step rules
+
+- Gate on CI and the review bot. Run no parallel verification agents.
+```
+
+A project's standing orders win over the profile, so one project can depart from it.
 
 ## Serving it on the tailnet
 

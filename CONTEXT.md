@@ -24,6 +24,10 @@ _Avoid_: Notes, memory, docs, Vault note
 The one wiki that belongs to no project. It holds what the user learned that applies across all projects.
 _Avoid_: Global wiki, shared memory, preferences
 
+**Profile**:
+The user's own way of working that every coordinator follows: how plans get written, how step threads are briefed and named, and which tracker holds tickets. A project's standing orders win over it. It never changes how a coordinator records the plan and progress.
+_Avoid_: Config, settings, preferences
+
 ## Plan
 
 **Plan**:
@@ -31,7 +35,7 @@ The project's plan file, and the source of truth for which steps exist and what 
 _Avoid_: Spec, RFC, design doc, Jira epic
 
 **Plan step**:
-One step of a plan. It has exactly one ticket. The plan alone decides what a step is and what it depends on.
+One step of a plan. It has one ticket when the profile names a tracker, and none otherwise. The plan alone decides what a step is and what it depends on.
 _Avoid_: Phase, milestone, unit, task
 
 **Dependency**:
@@ -68,18 +72,18 @@ _Avoid_: Pause, block, on hold
 A step with work in progress while a step it depends on isn't merged or done yet. It's a flag shown beside the step's state, not an error, because stacked work does this on purpose.
 _Avoid_: Out of order, jumped
 
-## Jira
+## Tickets
 
 **Epic**:
-The Jira epic a project points to. It's a pointer the company requires, not the project itself.
+The epic in the profile's tracker that a project points to, such as a Jira epic. It's a pointer the company requires, not the project itself.
 _Avoid_: Project
 
 **Ticket**:
-The Jira issue a plan step points to. It mirrors the step and carries no truth of its own.
+The issue in the profile's tracker that a plan step points to. It mirrors the step and carries no truth of its own.
 _Avoid_: Issue, task, story, unit
 
 **Drift**:
-A ticket whose Jira status or links disagree with its plan step, such as Jira saying In Progress after the step's pull request merged.
+A ticket whose status or links in the tracker disagree with its plan step, such as Jira saying In Progress after the step's pull request merged.
 _Avoid_: Out of sync, stale
 
 ## Work

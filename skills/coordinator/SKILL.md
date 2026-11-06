@@ -18,11 +18,28 @@ This thread is the **coordinator** of one project. It owns the plan, hands every
   - `standing-orders.md` holds numbered rulings from the user, each in the user's own words and dated. Append a line whenever the user decides something, and whenever you catch yourself restating an instruction.
   - `YYYY-MM-DD-<topic>.md` pages hold what was learned: research reports, why a step changed, what a review found.
 - **Universal wiki.** `~/.mr-handy/wiki/` holds lessons that apply to every project. Read its `index.md` on start. Write there only what is true beyond this project.
+- **Profile.** `~/.mr-handy/profile.md` holds the user's own way of working, shared by every project. See **Profile** below.
 - **Identity.** This thread's id is `$T3CODE_THREAD_ID`. Its environment id is in `$T3CODE_HOME/userdata/environment-id`.
+
+## Profile
+
+This skill is the protocol every coordinator follows. The profile is the user's policy, and it fills the slots below. A missing file, key or section means the default. The project's standing orders win over the profile, and the profile wins over the defaults. Nothing in either changes the protocol: the database writes, the plan and database kept in step, holds, altitude and the **Report back** contract.
+
+Frontmatter keys:
+
+- `branch`: the template for a step thread's branch. `{type}` is `feat`, `fix`, `chore` or `docs`, whichever fits the step. `{ticket}` is the step's ticket key in lower case, or its step id when it has no ticket. `{step}` is the step id. Default `{type}/{ticket}`.
+- `tracker`: the issue tracker each step gets a ticket in, such as `jira`. Default none: steps get no tickets and projects no epic.
+
+Sections, each used where this skill names it:
+
+- `## Planning`: how to write `plan.md`. Default: write it directly, as **Where things live** describes.
+- `## Step preamble`: lines that open every step thread's brief, verbatim. Default none.
+- `## Step rules`: rules pasted into every brief, verbatim, ahead of the standing orders. Default none.
+- `## Ask first`: actions to add to **Ask first** in **What you may do**. It adds to that list and never removes from it.
 
 ## 1. Preflight
 
-Load the T3 tools with ToolSearch: `t3_thread_launch`, `t3_thread_send`, `t3_thread_read`, `t3_thread_list`, `t3_thread_update`, `t3_project_list`. Run `mr-handy project list`. When a tool fails to load or `mr-handy` is not on PATH, stop and tell the user which one is missing.
+Load the T3 tools with ToolSearch: `t3_thread_launch`, `t3_thread_send`, `t3_thread_read`, `t3_thread_list`, `t3_thread_update`, `t3_project_list`. Run `mr-handy project list`. Read `~/.mr-handy/profile.md` when it exists. When a tool fails to load or `mr-handy` is not on PATH, stop and tell the user which one is missing.
 
 ## 2. Pick the mode
 
@@ -34,17 +51,17 @@ Compare `$ARGUMENTS` with the slugs from `mr-handy project list`.
 
 ## 3. New project
 
-1. Restate the outcome the user wants in two sentences. Ask only what you cannot find yourself: which repos, the Jira epic if one exists, and hard constraints. Record their answers as standing orders.
+1. Restate the outcome the user wants in two sentences. Ask only what you cannot find yourself: which repos, the epic if the profile names a tracker, and hard constraints. Record their answers as standing orders.
 2. **Name the project.** The slug is the epic key in lower case when there is an epic (`chase-2146`). Otherwise it's two or three kebab-case words naming the outcome. The name is the outcome in six words or fewer ("Workspace-scoped applications"). Then:
    ```sh
    mr-handy project create <slug> --name "<name>" [--epic <KEY>]
    mkdir -p ~/.mr-handy/<slug>/wiki
    ```
    Write `wiki/index.md` and `wiki/standing-orders.md`. Retitle this thread to `Coordinator: <name>` with `t3_thread_update`.
-3. **Plan.** The Skill tool can't load `poteto-mode` (`disable-model-invocation`), so don't try. Read `~/.claude/skills/poteto-mode/SKILL.md` in full with the Read tool, then its `playbooks/multi-phase-plan.md`, and follow them for planning only. The deliverable is `~/.mr-handy/<slug>/plan.md`, a plan for <outcome>. Its playbook runs inside this skill's rules, and those rules win where the two disagree. Any investigation, `how` explorer or subagent it calls for becomes a research step thread (see **Step threads**) whose report you file as a wiki page. Each step is one pull request's worth of work and gets one ticket.
+3. **Plan.** Follow the profile's **Planning** section, or its default. The deliverable is `~/.mr-handy/<slug>/plan.md`, a plan for <outcome>. Whatever method the profile names runs inside this skill's rules, and those rules win where the two disagree. Any investigation or subagent that method calls for becomes a research step thread (see **Step threads**) whose report you file as a wiki page. Each step is one pull request's worth of work, and gets one ticket when the profile names a tracker.
 4. Mirror the plan into the database with `mr-handy step add` and `mr-handy dependency add`, in plan order. `mr-handy project show <slug>` matches `plan.md` when this is done.
 5. Show the user the plan as a numbered list of steps with their dependencies, and ask for approval. Apply each change they ask for to both copies.
-6. Once approved, file one Jira ticket per step under the epic, mirroring the step's title, and record each with `mr-handy step rewrite <step> --project <slug> --ticket <KEY>`. The project stays in Planning until the user sets it Active on the project page. Tell them that, then go to **Run**.
+6. Once approved, and when the profile names a tracker, file one ticket per step under the epic, mirroring the step's title, and record each with `mr-handy step rewrite <step> --project <slug> --ticket <KEY>`. The project stays in Planning until the user sets it Active on the project page. Tell them that, then go to **Run**.
 
 ## 4. Resume
 
@@ -71,18 +88,18 @@ Every piece of work, research included, runs in a T3 thread made with `t3_thread
 Launch with:
 
 - `projectId` set to the target repo's T3 project (`t3_project_list`), recorded in `wiki/index.md`.
-- `workspaceStrategy: { type: "worktree", branch: "charlie632/<feat|fix|chore|docs>/<ticket key, lower case>" }`. A stacked step adds its parent step's branch as `baseRef` and `startFromOrigin: false`. A research thread uses `{ type: "root" }` and no branch.
-- `delegatedFrom` set to this thread. `title` set to `<TICKET>: <step title>`.
+- `workspaceStrategy: { type: "worktree", branch: "<the profile's branch template, filled in>" }`. A stacked step adds its parent step's branch as `baseRef` and `startFromOrigin: false`. A research thread uses `{ type: "root" }` and no branch.
+- `delegatedFrom` set to this thread. `title` set to `<TICKET>: <step title>`, or `<step id>: <step title>` when the step has no ticket.
 - `message` set to the brief below.
 
 Right after the launch, run `mr-handy status started --project <slug> --step <step> --thread <new thread id> --title "<the title you launched it with>"`.
 
-The brief opens with `/poteto-mode` on its own line, then these sections:
+The brief opens with the profile's **Step preamble**, then these sections:
 
 - **Goal.** The step's outcome, and the project's outcome in one sentence.
 - **Why / evidence.** What the plan and the wiki know that bears on this step, as paths to wiki pages rather than pasted text.
 - **Touchpoints.** Files, tickets and pull requests you know of. Add: "grep for more, don't trust this list."
-- **Rules and scope.** The full contents of `standing-orders.md`, pasted verbatim. Then: check that no pull request already exists for this work before starting. Stay inside this step. Work that belongs to another step goes into the report.
+- **Rules and scope.** The profile's **Step rules**, then the full contents of `standing-orders.md`, both pasted verbatim. Then: check that no pull request already exists for this work before starting. Stay inside this step. Work that belongs to another step goes into the report.
 - **Report back.** Send coordinator thread `<$T3CODE_THREAD_ID>` one short message with `t3_thread_send` when you open a pull request (include its URL), when you need a decision, when you're blocked, and when you finish. Each message carries at most one paragraph: what happened, the URL, and the decision needed. Leave code, diffs and logs out. Write longer findings to `~/.mr-handy/<slug>/wiki/YYYY-MM-DD-<topic>.md` and send the path.
 
 ## Altitude
@@ -95,9 +112,9 @@ This thread stays at the altitude of the plan: decisions, step states, links and
 
 ## What you may do
 
-- **Without asking.** Edit the plan, hold and release steps, launch and message step threads, post status updates, write the wiki, and file or update Jira tickets so they mirror the plan.
+- **Without asking.** Edit the plan, hold and release steps, launch and message step threads, post status updates, write the wiki, and file or update tickets so they mirror the plan.
 - **Tell the user in your next reply.** Every step you add or drop, and every early start.
-- **Ask first.** Merging a pull request, deploying, changing project state, and posting to Slack or to anyone else's pull request.
+- **Ask first.** Merging a pull request, deploying, changing project state, messaging people (Slack, email, anyone else's pull request), and each action in the profile's **Ask first**.
 
 ## Replying to the user
 
