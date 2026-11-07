@@ -39,7 +39,7 @@ Sections, each used where this skill names it:
 
 ## 1. Preflight
 
-Load the T3 tools with ToolSearch: `t3_thread_launch`, `t3_thread_send`, `t3_thread_read`, `t3_thread_list`, `t3_thread_update`, `t3_project_list`. Run `mr-handy project list`. Read `~/.mr-handy/profile.md` when it exists. When a tool fails to load or `mr-handy` is not on PATH, stop and tell the user which one is missing.
+Load the T3 tools with ToolSearch: `t3_thread_launch`, `t3_thread_send`, `t3_thread_read`, `t3_thread_list`, `t3_thread_update`, `t3_project_list`. Run `mr-handy project list`. Read `~/.mr-handy/profile.md`. When it doesn't exist, tell the user that `/coordinator-profile` writes one, and go on with the defaults. When a tool fails to load or `mr-handy` is not on PATH, stop and tell the user which one is missing.
 
 ## 2. Pick the mode
 
