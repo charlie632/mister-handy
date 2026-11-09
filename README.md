@@ -4,115 +4,60 @@
 
 One place to watch every project you're running at once: its plan, where each plan step stands, and which T3 Code thread is working it. [CONTEXT.md](CONTEXT.md) defines the terms.
 
-## Layout
+## Quick start
 
-- `packages/domain` holds the Effect Schema definitions every other package shares, and `deriveStepNodes`, which works out each step's state.
-- `packages/db` holds the SQLite schema and the queries the pages and the CLI run. [docs/storage.md](docs/storage.md) describes the model.
-- `apps/web` is the TanStack Start app with the Home page and Project pages.
-- `apps/cli` is `mr-handy`, the CLI a coordinator thread uses to write the plan, post status updates and set up the database.
-- `skills/coordinator` is the `/coordinator` skill that turns a T3 thread into a project's coordinator.
-
-## Running it
+### 1. Install
 
 Needs Node 22.23 or newer and pnpm 10.28.
 
 ```sh
+git clone git@github.com:charlie632/mister-handy.git
+cd mister-handy
 pnpm install
 pnpm build
-pnpm exec mr-handy db init                                   # create the tables, safe to rerun
-pnpm exec mr-handy db load docs/examples/chase-2146.sql     # load the CHASE-2146 example
-pnpm dev                                                     # web app on http://localhost:3000
-pnpm typecheck
-pnpm test
 ```
 
-The database is `~/.mr-handy/mister-handy.db`. Set `MR_HANDY_DB` to use another file, for example to try the example without touching your real data:
+### 2. Install the CLI
 
 ```sh
-export MR_HANDY_DB=/tmp/mr-handy-try.db
-pnpm exec mr-handy db init && pnpm exec mr-handy db load docs/examples/chase-2146.sql
-pnpm dev
+(cd apps/cli && pnpm link --global)   # puts mr-handy on PATH; needs PNPM_HOME set
+mr-handy --help
 ```
 
-`mr-handy db load` runs the whole file in one transaction, so a file that fails halfway leaves the database as it was. Node prints an ExperimentalWarning for `node:sqlite` on 22.x. It's harmless.
+Coordinators run in other repos' T3 projects, so `mr-handy` has to be on PATH, not just runnable from this checkout.
 
-## Writing a plan
-
-A coordinator records its project's plan and progress with `mr-handy`:
+### 3. Get started with the CLI
 
 ```sh
-mr-handy project create chase-2146 --name "Workspace-scoped applications" --epic CHASE-2146
-
-mr-handy step add route-readers  --project chase-2146 --title "Route readers through the applications aggregate" --ticket CHASE-2148
-mr-handy step add require-viewer --project chase-2146 --title "Make a viewer argument required on every read" --depends-on route-readers
-mr-handy step add unique-name    --project chase-2146 --title "Make applications.name unique" --after route-readers
-
-mr-handy step rewrite unique-name --project chase-2146 --ticket CHASE-2147
-mr-handy step split require-viewer --project chase-2146 --part require-viewer-api="Require a viewer in the internal API"
-mr-handy dependency add unique-name --project chase-2146 --on require-viewer
-mr-handy dependency remove unique-name --project chase-2146 --on require-viewer
-mr-handy step drop unique-name --project chase-2146
-
-mr-handy status started   --project chase-2146 --step require-viewer --thread <step thread id>
-mr-handy status pr-opened --project chase-2146 --step require-viewer --url https://github.com/cerbyinc/platform/pull/36673
+mr-handy db init                      # create ~/.mr-handy/mister-handy.db, safe to rerun
+mr-handy serve                        # the web app on http://127.0.0.1:3000
+mr-handy serve --tailscale            # also https://<machine>.<tailnet>.ts.net:8300
 ```
 
-`mr-handy skill install` links each skill in this checkout's `skills/`, `coordinator` and `coordinator-profile`, into `$CLAUDE_CONFIG_DIR/skills`, by default `~/.claude/skills`. Rerunning it changes nothing, a link to another checkout is replaced, and a real directory in the way is refused before anything is linked.
+`--tailscale` keeps serving on the tailnet across reboots; `mr-handy serve` doesn't, so restart it after one. `tailscale serve --https=8300 off` stops it. Set `MR_HANDY_DB` to point at another database file. Node warns that `node:sqlite` is experimental on 22.x; that's harmless.
 
-`mr-handy project list` prints one tab-separated line per project: slug, state and name. `mr-handy project show <slug>` prints the project, its steps and each step's derived state as JSON.
+To see a populated page before running a real project, load the example: `mr-handy db load docs/examples/chase-2146.sql`.
 
-Each write command prints one line per change, or `No change.` when the database already looked like that, so every command is safe to rerun. A command that conflicts with what is stored, names an unknown project or step, or would close a dependency cycle prints `Refused:` and the reason on stderr, writes nothing, and exits 1.
-
-- `step add` appends the step unless `--after` names the step it goes after. `--depends-on` can be repeated.
-- `step split` keeps the original step with its ticket, threads and pull requests, and adds each `--part <id>=<title>` right after it. Each part waits on what the original waited on, and whatever waited on the original waits on each part too.
-- `step drop` marks the step Dropped. Its threads and pull requests stay, and each step that waited on it waits on its dependencies instead.
-- `project create` fills in `--thread` from `T3CODE_THREAD_ID` and `--environment` from `$T3CODE_HOME/userdata/environment-id` when they are left out, so the calling thread becomes the coordinator. T3 Code sets both variables in every thread.
-- `status started --thread` names the step thread, so it has no fallback. `--environment` falls back as above. The thread that runs a status command is recorded as the update's poster.
-
-## Running a coordinator
-
-The `/coordinator` skill runs a project from a T3 thread. It needs `mr-handy` on PATH and the skill in Claude Code's user skills, because coordinators usually run in another repo's T3 project:
+### 4. Install the skills
 
 ```sh
-pnpm build
-(cd apps/cli && pnpm link --global)                          # puts mr-handy on PATH; needs PNPM_HOME set
-mr-handy skill install                                       # symlinks each skill in skills/ into ~/.claude/skills
+mr-handy skill install                # symlinks skills/* into ~/.claude/skills
 ```
 
-In a new T3 thread, `/coordinator <what the project should achieve>` starts a new project: it names it, plans it and mirrors the plan into the database. `/coordinator <slug>` resumes one from the database and its wiki under `~/.mr-handy/<slug>/`. [skills/coordinator/SKILL.md](skills/coordinator/SKILL.md) holds the rules, including what the coordinator may do without asking.
+That installs `/coordinator` and `/coordinator-profile`. Then, in any Claude Code or T3 thread, run `/coordinator-profile` once. It reads your setup, shows a draft of `~/.mr-handy/profile.md` and asks only what it couldn't work out: your branch template, issue tracker, how plans get written and the rules every step thread follows. Every coordinator reads that file. Without it, a coordinator writes plans directly, uses no tracker and names branches `<type>/<ticket or step id>`.
 
-`~/.mr-handy/profile.md` holds your own way of working, and every coordinator reads it. `/coordinator-profile` writes it for you: it reads your Claude Code setup and your projects' standing orders, shows a draft and asks only what it couldn't work out. It sets the branch template, the issue tracker, how plans get written, what opens every step thread's brief, the rules every step thread follows and what else to ask before doing. Without it a coordinator writes plans directly, uses no tracker and names branches `<type>/<ticket or step id>`. The skill's Profile section lists each key and section. For example:
+### 5. Start a project with T3
 
-```md
----
-branch: alice/{type}/{ticket}
-tracker: jira
----
+Open a new thread in the T3 project for the repo the work happens in, and run:
 
-## Planning
-
-Read ~/.claude/skills/planning/SKILL.md and follow it.
-
-## Step preamble
-
-/my-workflow
-
-## Step rules
-
-- Gate on CI and the review bot. Run no parallel verification agents.
+```
+/coordinator <what the project should achieve>
 ```
 
-A project's standing orders win over the profile, so one project can depart from it.
+The thread becomes the project's coordinator: it names the project, writes the plan, shows it to you and mirrors it into the database. Approve the plan, then set the project Active on its page in the web app. The coordinator launches a step thread per step and tracks each one's pull request.
 
-## Serving it on the tailnet
+To pick a project back up in a fresh thread, run `/coordinator <slug>`. It resumes from the database and the project's wiki under `~/.mr-handy/<slug>/`. [skills/coordinator/SKILL.md](skills/coordinator/SKILL.md) holds the rules, including what a coordinator may do without asking.
 
-The pages go out over Tailscale, so only your own devices reach them. Port 443 on this machine already serves T3 Code, so Mister Handy uses 8300.
+## Developing
 
-```sh
-pnpm build
-mr-handy serve                                               # built app on http://127.0.0.1:3000
-mr-handy serve --tailscale                                   # also https://<machine>.<tailnet>.ts.net:8300
-tailscale serve --https=8300 off                             # stop serving on the tailnet
-```
-
-`pnpm serve` runs `mr-handy serve`. `--tailscale` runs `tailscale serve --bg --https=8300` before starting the app, and rerunning it changes nothing. `tailscale serve --bg` survives a reboot and `mr-handy serve` doesn't, so after a reboot only the app needs restarting. `pnpm dev` works behind the same proxy. Vite rejects unknown hosts, so `apps/web/vite.config.ts` allows `*.ts.net` in dev and preview.
+[docs/developing.md](docs/developing.md) covers the repo layout and how to run the app, typecheck and tests.
