@@ -44,9 +44,19 @@ To see a populated page before running a real project, load the example: `mr-han
 mr-handy skill install                # symlinks skills/* into ~/.claude/skills
 ```
 
-That installs `/coordinator` and `/coordinator-profile`. Then, in any Claude Code or T3 thread, run `/coordinator-profile` once. It reads your setup, shows a draft of `~/.mr-handy/profile.md` and asks only what it couldn't work out: your branch template, issue tracker, how plans get written and the rules every step thread follows. Every coordinator reads that file. Without it, a coordinator writes plans directly, uses no tracker and names branches `<type>/<ticket or step id>`.
+That installs `/coordinator` and `/coordinator-profile`.
 
-### 5. Start a project with T3
+### 5. Write your profile (optional)
+
+In any Claude Code or T3 thread, run:
+
+```
+/coordinator-profile
+```
+
+It reads your setup, shows a draft of `~/.mr-handy/profile.md` and asks only what it couldn't work out: your branch template, issue tracker, how plans get written and the rules every step thread follows. Every coordinator reads that file. Without it, a coordinator writes plans directly, uses no tracker and names branches `<type>/<ticket or step id>`.
+
+### 6. Start a project with T3
 
 Open a new thread in the T3 project for the repo the work happens in, and run:
 
