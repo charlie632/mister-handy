@@ -3,7 +3,7 @@ import { describe, expect, it } from "@effect/vitest"
 import { layer, readProject } from "@mister-handy/db"
 import { ProjectSlug } from "@mister-handy/domain"
 import { ConfigProvider, Console, Effect, Exit } from "effect"
-import { mkdirSync, mkdtempSync, readlinkSync, rmSync, symlinkSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readlinkSync, rmSync, symlinkSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { cli } from "./cli.ts"
@@ -122,10 +122,10 @@ describe("mr-handy", () => {
     )
   })
 
-  it.effect("links the coordinator skill, converges on rerun, and replaces a stale link", () => {
+  it.effect("links every skill, converges on rerun, replaces a stale link, and refuses a real directory", () => {
     const config = mkdtempSync(join(tmpdir(), "mr-handy-claude-"))
-    const link = join(config, "skills", "coordinator")
-    const skill = join(import.meta.dirname, "..", "..", "..", "skills", "coordinator")
+    const linkOf = (name: string) => join(config, "skills", name)
+    const skillOf = (name: string) => join(import.meta.dirname, "..", "..", "..", "skills", name)
     const stdout: Array<string> = []
     const stderr: Array<string> = []
 
@@ -138,22 +138,26 @@ describe("mr-handy", () => {
 
     return Effect.gen(function* () {
       yield* run("skill", "install")
-      expect(stdout).toEqual([`Linked ${link} to ${skill}.`])
-      expect(readlinkSync(link)).toBe(skill)
+      expect(stdout).toEqual(
+        ["coordinator", "coordinator-profile"].map((name) => `Linked ${linkOf(name)} to ${skillOf(name)}.`)
+      )
+      expect(readlinkSync(linkOf("coordinator-profile"))).toBe(skillOf("coordinator-profile"))
       yield* run("skill", "install")
       expect(stdout, "rerun").toEqual(["No change."])
 
       const stale = mkdtempSync(join(tmpdir(), "mr-handy-old-checkout-"))
-      rmSync(link)
-      symlinkSync(stale, link)
+      rmSync(linkOf("coordinator"))
+      symlinkSync(stale, linkOf("coordinator"))
       yield* run("skill", "install")
-      expect(stdout).toEqual([`Relinked ${link} to ${skill}, was ${stale}.`])
-      expect(readlinkSync(link)).toBe(skill)
+      expect(stdout).toEqual([`Relinked ${linkOf("coordinator")} to ${skillOf("coordinator")}, was ${stale}.`])
+      expect(readlinkSync(linkOf("coordinator"))).toBe(skillOf("coordinator"))
 
-      rmSync(link)
-      mkdirSync(link)
+      rmSync(linkOf("coordinator"))
+      mkdirSync(linkOf("coordinator"))
+      rmSync(linkOf("coordinator-profile"))
       const blocked = yield* run("skill", "install")
       expect(Exit.isFailure(blocked), "a real directory is left alone").toBe(true)
+      expect(existsSync(linkOf("coordinator-profile")), "a refusal links nothing").toBe(false)
     }).pipe(
       Effect.provide(NodeServices.layer),
       Effect.provideService(

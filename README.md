@@ -57,7 +57,7 @@ mr-handy status started   --project chase-2146 --step require-viewer --thread <s
 mr-handy status pr-opened --project chase-2146 --step require-viewer --url https://github.com/cerbyinc/platform/pull/36673
 ```
 
-`mr-handy skill install` links this checkout's `skills/coordinator` into `$CLAUDE_CONFIG_DIR/skills`, by default `~/.claude/skills`. Rerunning it changes nothing, a link to another checkout is replaced, and a real directory in the way is refused.
+`mr-handy skill install` links each skill in this checkout's `skills/`, `coordinator` and `coordinator-profile`, into `$CLAUDE_CONFIG_DIR/skills`, by default `~/.claude/skills`. Rerunning it changes nothing, a link to another checkout is replaced, and a real directory in the way is refused before anything is linked.
 
 `mr-handy project list` prints one tab-separated line per project: slug, state and name. `mr-handy project show <slug>` prints the project, its steps and each step's derived state as JSON.
 
@@ -76,12 +76,12 @@ The `/coordinator` skill runs a project from a T3 thread. It needs `mr-handy` on
 ```sh
 pnpm build
 (cd apps/cli && pnpm link --global)                          # puts mr-handy on PATH; needs PNPM_HOME set
-mr-handy skill install                                       # symlinks skills/coordinator into ~/.claude/skills
+mr-handy skill install                                       # symlinks each skill in skills/ into ~/.claude/skills
 ```
 
 In a new T3 thread, `/coordinator <what the project should achieve>` starts a new project: it names it, plans it and mirrors the plan into the database. `/coordinator <slug>` resumes one from the database and its wiki under `~/.mr-handy/<slug>/`. [skills/coordinator/SKILL.md](skills/coordinator/SKILL.md) holds the rules, including what the coordinator may do without asking.
 
-`~/.mr-handy/profile.md` holds your own way of working, and every coordinator reads it. It sets the branch template, the issue tracker, how plans get written, what opens every step thread's brief, the rules every step thread follows and what else to ask before doing. Without it a coordinator writes plans directly, uses no tracker and names branches `<type>/<ticket or step id>`. The skill's Profile section lists each key and section. For example:
+`~/.mr-handy/profile.md` holds your own way of working, and every coordinator reads it. `/coordinator-profile` writes it for you: it reads your Claude Code setup and your projects' standing orders, shows a draft and asks only what it couldn't work out. It sets the branch template, the issue tracker, how plans get written, what opens every step thread's brief, the rules every step thread follows and what else to ask before doing. Without it a coordinator writes plans directly, uses no tracker and names branches `<type>/<ticket or step id>`. The skill's Profile section lists each key and section. For example:
 
 ```md
 ---

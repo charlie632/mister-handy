@@ -342,12 +342,21 @@ const db = Command.make("db").pipe(
 )
 
 // Relative paths resolve the same from src/cli.ts and from the bundled dist/bin.js.
-const coordinatorSkill = fileURLToPath(new URL("../../../skills/coordinator", import.meta.url))
+const skillsSource = fileURLToPath(new URL("../../../skills", import.meta.url))
 
 const claudeSkills = Config.String("CLAUDE_CONFIG_DIR").pipe(
   Config.orElse(() => Config.String("HOME").pipe(Config.map((home) => `${home}/.claude`))),
   Config.map((dir) => `${dir}/skills`)
 )
+
+const inspectSkillLink = Effect.fnUntraced(function* (skills: string, name: string) {
+  const fs = yield* FileSystem.FileSystem
+  const link = `${skills}/${name}`
+  const current = yield* fs.readLink(link).pipe(Effect.option)
+  const blocked = Option.isNone(current) && (yield* fs.exists(link))
+
+  return { link, target: `${skillsSource}/${name}`, current, blocked }
+})
 
 const skillInstall = Command.make(
   "install",
@@ -355,33 +364,40 @@ const skillInstall = Command.make(
   Effect.fnUntraced(function* () {
     const fs = yield* FileSystem.FileSystem
     const skills = yield* claudeSkills
-    const link = `${skills}/coordinator`
-    const current = yield* fs.readLink(link).pipe(Effect.option)
+    const names = (yield* fs.readDirectory(skillsSource)).toSorted()
+    const links = yield* Effect.forEach(names, (name) => inspectSkillLink(skills, name))
+    const blocked = links.filter((entry) => entry.blocked)
 
-    if (Option.isSome(current) && current.value === coordinatorSkill) return yield* report([])
-
-    if (Option.isNone(current) && (yield* fs.exists(link))) {
+    if (blocked.length > 0) {
       return yield* new CliError.UserError({
         cause: null,
-        userMessage: `${link} exists and is not a symlink. Move it away and rerun.`
+        userMessage: `Not a symlink: ${blocked.map((entry) => entry.link).join(", ")}. Move each away and rerun.`
       })
     }
 
-    if (Option.isSome(current)) yield* fs.remove(link)
+    const stale = links.filter((entry) => Option.getOrNull(entry.current) !== entry.target)
+
     yield* fs.makeDirectory(skills, { recursive: true })
-    yield* fs.symlink(coordinatorSkill, link)
-    yield* report([
-      Option.isSome(current)
-        ? `Relinked ${link} to ${coordinatorSkill}, was ${current.value}.`
-        : `Linked ${link} to ${coordinatorSkill}.`
-    ])
+    yield* Effect.forEach(stale, ({ link, target, current }) =>
+      Effect.andThen(Option.isSome(current) ? fs.remove(link) : Effect.void, fs.symlink(target, link))
+    )
+    yield* report(
+      stale.map(({ link, target, current }) =>
+        Option.match(current, {
+          onNone: () => `Linked ${link} to ${target}.`,
+          onSome: (previous) => `Relinked ${link} to ${target}, was ${previous}.`
+        })
+      )
+    )
   })
 ).pipe(
-  Command.withDescription("Symlink the /coordinator skill into $CLAUDE_CONFIG_DIR/skills, by default ~/.claude/skills")
+  Command.withDescription(
+    "Symlink every skill in this checkout's skills/ into $CLAUDE_CONFIG_DIR/skills, by default ~/.claude/skills"
+  )
 )
 
 const skill = Command.make("skill").pipe(
-  Command.withDescription("Install the /coordinator skill for Claude Code"),
+  Command.withDescription("Install this checkout's skills for Claude Code"),
   Command.withSubcommands([skillInstall])
 )
 
