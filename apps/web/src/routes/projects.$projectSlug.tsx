@@ -126,7 +126,7 @@ function ProjectContent() {
                     Coordinator thread
                   </a>
                 )}
-                <span>{view.observedAt ? `Observed ${view.observedAt.slice(11, 16)} UTC` : "Not observed yet"}</span>
+                {view.observedAt && <span>Observed {view.observedAt.slice(11, 16)} UTC</span>}
               </div>
             </div>
             <div className="head-actions">
@@ -353,7 +353,7 @@ function StepDetail({ view, node, shown }: { view: ProjectView; node: StepNode; 
                 <li key={thread.threadId}>
                   <a href={threadDeepLink(thread)}>{thread.title ?? thread.threadId}</a>{" "}
                   <span className="muted">
-                    · {thread.state ?? "not observed"}
+                    {thread.state !== null && ` · ${thread.state}`}
                     {i === 0 && " · newest"}
                   </span>
                 </li>
@@ -372,7 +372,7 @@ function StepDetail({ view, node, shown }: { view: ProjectView; node: StepNode; 
                   <a href={pr.url} target="_blank" rel="noreferrer">
                     {prNumber(pr.url)}
                   </a>{" "}
-                  <span className="muted">· {pr.state ?? "not observed"}</span>
+                  {pr.state !== null && <span className="muted">· {pr.state}</span>}
                 </li>
               ))
             )}
@@ -385,7 +385,7 @@ function StepDetail({ view, node, shown }: { view: ProjectView; node: StepNode; 
           ) : (
             <>
               <a href={jiraUrl(node.step.ticket)}>{node.step.ticket}</a>{" "}
-              <span className="muted">· {node.jiraStatus ?? "not observed"}</span>
+              {node.jiraStatus !== null && <span className="muted">· {node.jiraStatus}</span>}
               {node.drift && (
                 <>
                   {" "}

@@ -193,7 +193,7 @@ export const StepList = ({
                 <a href={pr.url} target="_blank" rel="noreferrer" className="mono">
                   {prNumber(pr.url)}
                 </a>{" "}
-                <span className="muted">{pr.state?.toLowerCase() ?? "not observed"}</span>
+                {pr.state !== null && <span className="muted">{pr.state.toLowerCase()}</span>}
               </div>
             ))
           )}
@@ -203,7 +203,7 @@ export const StepList = ({
             <span className="muted">—</span>
           ) : (
             <a href={threadDeepLink(newest)} title={newest.title ?? undefined}>
-              {newest.state?.toLowerCase() ?? "not observed"}
+              {newest.state?.toLowerCase() ?? "open"}
             </a>
           )}
         </td>
@@ -211,8 +211,12 @@ export const StepList = ({
           {node.step.ticket === null ? (
             <span className="muted">no ticket</span>
           ) : (
-            <a href={jiraUrl(node.step.ticket)} className={node.drift ? "flag" : "muted"}>
-              {node.jiraStatus ?? "not observed"}
+            <a
+              href={jiraUrl(node.step.ticket)}
+              className={node.drift ? "flag mono" : "mono"}
+              title={node.jiraStatus ?? undefined}
+            >
+              {node.step.ticket}
             </a>
           )}
         </td>
@@ -359,21 +363,26 @@ const subline = (node: StepNode) => {
   if (prs.length === 0) {
     if (node.state === "Done") return "closed without code"
 
-    return node.threads.length > 0
-      ? `thread ${node.threads[0]!.state?.toLowerCase() ?? "not observed"}`
-      : "no thread yet"
+    const state = node.threads[0]?.state
+
+    if (node.threads.length === 0) return "no thread yet"
+
+    return state == null ? "thread started" : `thread ${state.toLowerCase()}`
   }
 
-  const each = prs.map((pr) => `${prNumber(pr.url)} ${pr.state?.toLowerCase() ?? "not observed"}`).join("  ")
+  const each = prs
+    .map((pr) => (pr.state === null ? prNumber(pr.url) : `${prNumber(pr.url)} ${pr.state.toLowerCase()}`))
+    .join("  ")
 
   if (each.length <= SUBLINE_CHARS) return each
 
   const counts = new Map<string, number>()
 
   for (const pr of prs) {
-    const state = pr.state?.toLowerCase() ?? "not observed"
-    counts.set(state, (counts.get(state) ?? 0) + 1)
+    if (pr.state !== null) counts.set(pr.state.toLowerCase(), (counts.get(pr.state.toLowerCase()) ?? 0) + 1)
   }
+
+  if (counts.size === 0) return `${prs.length} PRs`
 
   return ellipsize(`${prs.length} PRs · ${[...counts].map(([state, n]) => `${n} ${state}`).join(", ")}`, SUBLINE_CHARS)
 }
