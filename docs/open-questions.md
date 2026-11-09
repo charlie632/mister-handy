@@ -13,6 +13,7 @@
 - 2026-11-04: Tracer bullets and blocker steps are dropped. The plan alone dictates what each step is.
 - 2026-11-04: The coordinator does no housekeeping either. Rebases, restacks and review fixes all go to a step thread.
 - 2026-11-04: The coordinator runs from the `/coordinator` skill, which lists what it may do without asking. Step threads are top-level T3 threads launched into a worktree, and they report back by messaging the coordinator thread.
+- 2026-11-06: The coordinator skill holds the protocol, and the user's profile at `~/.mr-handy/profile.md` holds the policy: planning method, brief preamble and rules, branch template, tracker and extra ask-first actions. Step threads launch with the profile's preamble, which replaces the always-`/poteto-mode` decision above.
 
 ## Open
 
