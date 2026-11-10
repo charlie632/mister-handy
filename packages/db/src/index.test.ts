@@ -446,6 +446,20 @@ describe("plan edits", () => {
     )
   )
 
+  it.effect("unblocks the waiters of a step marked done without a pull request", () =>
+    withChase2146(
+      Effect.gen(function* () {
+        const before = yield* readProject(slug)
+        expect(node(before, "cache-by-viewer")?.pullRequests).toEqual([])
+        expect(stateOf(before, "draft-access-rows")).toBe("Blocked")
+        yield* closeStep({ project: slug, stepId: id("cache-by-viewer"), closedAs: "Done" })
+        const view = yield* readProject(slug)
+        expect(stateOf(view, "cache-by-viewer")).toBe("Done")
+        expect(stateOf(view, "draft-access-rows")).toBe("Ready")
+      })
+    )
+  )
+
   it.effect("names the unknown project or step and lists the steps that exist", () =>
     withChase2146(
       Effect.gen(function* () {
