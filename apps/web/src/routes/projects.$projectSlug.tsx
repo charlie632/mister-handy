@@ -418,6 +418,19 @@ function StepDetail({ view, node, shown }: { view: ProjectView; node: StepNode; 
             </a>
           )
         )}
+        {!closed && node.state !== "Merged" && (
+          <button
+            type="button"
+            className="btn"
+            onClick={() =>
+              window.confirm(
+                `Mark ${stepName(node)} done without a merged pull request? Steps waiting on it become ready.`
+              ) && closeAs("Done")
+            }
+          >
+            Mark done
+          </button>
+        )}
         {!closed && (
           <button
             type="button"
