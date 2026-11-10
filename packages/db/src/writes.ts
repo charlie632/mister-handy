@@ -99,6 +99,16 @@ export class LinkedElsewhere extends Data.TaggedError("LinkedElsewhere")<{
   }
 }
 
+export class DependsOnDropped extends Data.TaggedError("DependsOnDropped")<{
+  readonly project: ProjectSlug
+  readonly step: PlanStepId
+  readonly on: PlanStepId
+}> {
+  override get message() {
+    return `step ${this.on} of project ${this.project} was dropped, so ${this.step} can't depend on it. Depend on the steps ${this.on} waited on instead.`
+  }
+}
+
 const refusals = [
   UnknownProject,
   UnknownStep,
@@ -106,7 +116,8 @@ const refusals = [
   StepExists,
   TicketTaken,
   DependencyCycle,
-  LinkedElsewhere
+  LinkedElsewhere,
+  DependsOnDropped
 ] as const
 
 export type Refusal = InstanceType<(typeof refusals)[number]>
@@ -117,7 +128,8 @@ const StepRow = Schema.Struct({
   id: PlanStepId,
   title: Schema.String,
   ticket: Schema.NullOr(TicketKey),
-  position: Schema.Int
+  position: Schema.Int,
+  closedAs: Schema.NullOr(ClosedAs)
 })
 
 type StepRow = typeof StepRow.Type
@@ -132,7 +144,7 @@ const loadPlan = Effect.fnUntraced(function* (project: ProjectSlug) {
 
   const steps = yield* decodeAll(StepRow)(
     yield* sql`
-      SELECT step_id AS id, title, ticket_key AS ticket, position
+      SELECT step_id AS id, title, ticket_key AS ticket, position, closed_as AS "closedAs"
       FROM plan_step WHERE project_slug = ${project} ORDER BY position`
   )
 
@@ -150,7 +162,16 @@ const loadPlan = Effect.fnUntraced(function* (project: ProjectSlug) {
       : Effect.succeed(row)
   }
 
-  return { project, edges, find, require }
+  /** The step `waiter` is about to wait on. A Dropped step never finishes, so nothing new may wait on it. */
+  const requireDependency = Effect.fnUntraced(function* (waiter: PlanStepId, on: PlanStepId) {
+    const row = yield* require(on)
+
+    if (row.closedAs === "Dropped") return yield* new DependsOnDropped({ project, step: waiter, on })
+
+    return row
+  })
+
+  return { project, edges, find, require, requireDependency }
 })
 
 const requireTicketFree = Effect.fnUntraced(function* (ticket: TicketKey) {
@@ -224,7 +245,7 @@ const AddStep = Effect.fnUntraced(function* (edit: Case<"AddStep">) {
   const plan = yield* loadPlan(edit.project)
   const after = edit.after === null ? null : yield* plan.require(edit.after)
 
-  for (const dependency of edit.dependsOn) yield* plan.require(dependency)
+  for (const dependency of edit.dependsOn) yield* plan.requireDependency(edit.step, dependency)
   const changes: Array<PlanChange> = []
   const existing = plan.find(edit.step)
 
@@ -337,7 +358,7 @@ const ReleaseStep = Effect.fnUntraced(function* (edit: Case<"ReleaseStep">) {
 const AddDependency = Effect.fnUntraced(function* (edit: Case<"AddDependency">) {
   const plan = yield* loadPlan(edit.project)
   yield* plan.require(edit.step)
-  yield* plan.require(edit.on)
+  yield* plan.requireDependency(edit.step, edit.on)
 
   return yield* addEdges(edit.project, plan.edges, [{ before: edit.on, after: edit.step }])
 })

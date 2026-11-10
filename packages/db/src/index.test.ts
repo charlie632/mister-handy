@@ -20,6 +20,7 @@ import {
   closeStep,
   createProject,
   DependencyCycle,
+  DependsOnDropped,
   editPlan,
   LinkedElsewhere,
   listProjects,
@@ -381,6 +382,44 @@ describe("plan edits", () => {
         expect(dependsOn(view, "internal-api-reads")).toEqual(["route-readers"])
         expect(stateOf(view, "internal-api-reads")).toBe("Ready")
         expect(yield* editPlan(drop), "rerun").toEqual([])
+      })
+    )
+  )
+
+  it.effect("refuses a new dependency on a dropped step and writes nothing", () =>
+    withChase2146(
+      Effect.gen(function* () {
+        yield* editPlan(PlanEdit.cases.DropStep.make({ project: slug, step: id("require-viewer") }))
+        const before = yield* readProject(slug)
+
+        const edge = yield* Effect.flip(
+          editPlan(
+            PlanEdit.cases.AddDependency.make({
+              project: slug,
+              step: id("internal-api-reads"),
+              on: id("require-viewer")
+            })
+          )
+        )
+
+        expect(edge).toBeInstanceOf(DependsOnDropped)
+        expect(edge).toMatchObject({ step: "internal-api-reads", on: "require-viewer" })
+
+        const step = yield* Effect.flip(
+          editPlan(
+            PlanEdit.cases.AddStep.make({
+              project: slug,
+              step: id("new"),
+              title: "New",
+              ticket: null,
+              after: null,
+              dependsOn: [id("require-viewer")]
+            })
+          )
+        )
+
+        expect(step).toBeInstanceOf(DependsOnDropped)
+        expect(yield* readProject(slug)).toEqual(before)
       })
     )
   )
