@@ -27,6 +27,7 @@ import {
   readProject,
   recordStatusUpdate,
   runScript,
+  setProjectState,
   StepExists,
   TicketTaken,
   UnknownStep
@@ -419,6 +420,22 @@ describe("plan edits", () => {
         expect(step).toBeInstanceOf(UnknownStep)
         expect(step).toMatchObject({ step: "nope" })
         expect(step instanceof UnknownStep ? step.known : []).toHaveLength(10)
+      })
+    )
+  )
+})
+
+describe("project state", () => {
+  it.effect("sets the state the user chose, once, and refuses an unknown project", () =>
+    withChase2146(
+      Effect.gen(function* () {
+        expect((yield* readProject(slug))?.project.state).toBe("Active")
+        expect(yield* setProjectState({ project: slug, state: "Paused" })).toBe(true)
+        expect(yield* setProjectState({ project: slug, state: "Paused" }), "rerun").toBe(false)
+        expect((yield* readProject(slug))?.project.state).toBe("Paused")
+
+        const error = yield* Effect.flip(setProjectState({ project: ProjectSlug.make("nope"), state: "Active" }))
+        expect(error._tag).toBe("UnknownProject")
       })
     )
   )

@@ -269,6 +269,8 @@ export {
   ProjectExists,
   recordStatusUpdate,
   type Refusal,
+  setProjectState,
+  SetProjectState,
   StepExists,
   TicketTaken,
   UnknownProject,

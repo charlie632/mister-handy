@@ -8,6 +8,7 @@ import {
   type PlanEdit,
   PlanStepId,
   ProjectSlug,
+  ProjectState,
   StatusUpdate,
   ThreadId,
   ThreadRef,
@@ -487,6 +488,30 @@ export const createProject = Effect.fn("createProject")(function* (input: NewPro
         row?.environmentId && row.threadId ? { environmentId: row.environmentId, threadId: row.threadId } : null
     }
   })
+})
+
+export const SetProjectState = Schema.Struct({ project: ProjectSlug, state: ProjectState })
+
+export type SetProjectState = typeof SetProjectState.Type
+
+/**
+ * Sets the project state the user chose. Returns false when the project is already in that state.
+ */
+export const setProjectState = Effect.fn("setProjectState")(function* ({ project, state }: SetProjectState) {
+  const sql = yield* SqlClient.SqlClient
+
+  return yield* sql.withTransaction(
+    Effect.gen(function* () {
+      const found = yield* sql`SELECT 1 FROM project WHERE slug = ${project}`
+
+      if (found.length === 0) return yield* new UnknownProject({ project })
+
+      const changed = yield* sql`
+        UPDATE project SET state = ${state} WHERE slug = ${project} AND state <> ${state} RETURNING 1`
+
+      return changed.length > 0
+    })
+  )
 })
 
 /**
