@@ -1,4 +1,13 @@
-import { closeStep, CloseStep, layer, listProjects, readPlan, readProject } from "@mister-handy/db"
+import {
+  closeStep,
+  CloseStep,
+  layer,
+  listProjects,
+  readPlan,
+  readProject,
+  setProjectState,
+  SetProjectState
+} from "@mister-handy/db"
 import { ProjectSlug } from "@mister-handy/domain"
 import { createServerFn } from "@tanstack/react-start"
 import { Effect, ManagedRuntime, Schema } from "effect"
@@ -20,6 +29,12 @@ const getPlan = createServerFn({ method: "GET" })
 const postCloseStep = createServerFn({ method: "POST" })
   .validator((input: typeof CloseStep.Encoded) => input)
   .handler(({ data }) => database.runPromise(Effect.flatMap(Schema.decodeEffect(CloseStep)(data), closeStep)))
+
+const postProjectState = createServerFn({ method: "POST" })
+  .validator((input: typeof SetProjectState.Encoded) => input)
+  .handler(({ data }) =>
+    database.runPromise(Effect.flatMap(Schema.decodeEffect(SetProjectState)(data), setProjectState))
+  )
 
 export const projectsAtom = Atom.make(Effect.tryPromise(() => getProjects()))
 
@@ -68,5 +83,16 @@ export const planAtom = Atom.family((slug: ProjectSlug) => Atom.make(Effect.tryP
 export const closeStepAtom = Atom.fn((input: CloseStep, get) =>
   Effect.tryPromise(() => postCloseStep({ data: input })).pipe(
     Effect.tap(() => Effect.sync(() => get.refresh(projectSourceAtom(input.project))))
+  )
+)
+
+export const setProjectStateAtom = Atom.fn((input: SetProjectState, get) =>
+  Effect.tryPromise(() => postProjectState({ data: input })).pipe(
+    Effect.tap(() =>
+      Effect.sync(() => {
+        get.refresh(projectSourceAtom(input.project))
+        get.refresh(projectsAtom)
+      })
+    )
   )
 )

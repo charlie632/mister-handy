@@ -154,6 +154,17 @@ ul {
   border-radius: 50%;
   background: currentColor;
 }
+/* The project state on the project page: the one value in the head the user sets by hand. */
+.state-select {
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+}
 .st {
   font: 600 11px var(--font-sans);
   padding: 2px 8px;

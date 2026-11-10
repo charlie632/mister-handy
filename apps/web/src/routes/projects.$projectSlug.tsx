@@ -1,13 +1,13 @@
 import { useAtomSet, useAtomSuspense } from "@effect/atom-react"
 import type { ProjectView } from "@mister-handy/db"
-import { isFinished, PlanStepId, ProjectSlug, type StepNode, threadDeepLink } from "@mister-handy/domain"
+import { isFinished, PlanStepId, ProjectSlug, ProjectState, type StepNode, threadDeepLink } from "@mister-handy/domain"
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
 import { Option, Schema } from "effect"
 import { type ReactNode, Suspense } from "react"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { panelToggleProps, RightPanel } from "../panel.tsx"
-import { closeStepAtom, planAtom, projectAtom } from "../projects.ts"
+import { closeStepAtom, planAtom, projectAtom, setProjectStateAtom } from "../projects.ts"
 import {
   jiraUrl,
   Nav,
@@ -130,7 +130,7 @@ function ProjectContent() {
               </div>
             </div>
             <div className="head-actions">
-              <span className="pill">{project.state}</span>
+              <ProjectStateSelect slug={project.slug} state={project.state} />
               {!panelOpen && fallback && (
                 <Link
                   to="/projects/$projectSlug"
@@ -202,6 +202,30 @@ function ProjectContent() {
         {selected && <StepDetail view={view} node={selected} shown={shown} />}
       </RightPanel>
     </div>
+  )
+}
+
+/** The project state is the user's to set, so the page head offers all four. */
+function ProjectStateSelect({ slug, state }: { slug: ProjectSlug; state: ProjectState }) {
+  const setState = useAtomSet(setProjectStateAtom)
+
+  return (
+    <select
+      className="state-select"
+      aria-label="Project state"
+      value={state}
+      onChange={(event) => {
+        const chosen = ProjectState.literals.find((option) => option === event.target.value)
+
+        if (chosen !== undefined) setState({ project: slug, state: chosen })
+      }}
+    >
+      {ProjectState.literals.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
   )
 }
 
