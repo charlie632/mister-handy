@@ -40,6 +40,7 @@ Notes on the shape:
 - **A hold is `plan_step.held_for`**, the decision the coordinator is waiting on, as text. Only the command line tool writes it, through `mr-handy step hold` and `step release`. Holding again with the same reason changes nothing; a new reason replaces the old one.
 - **`Missing`** is a thread state that only the sync loop sets. It means T3 no longer knows the thread, for example because another machine owns it. A step whose newest thread is Missing reads as Needs you.
 - **Cycles in `dependency` can't be blocked by a CHECK.** The command line tool rejects an edge that would close a cycle before it writes.
+- **Nothing new can depend on a Dropped step.** A Dropped step never counts as finished, so the command line tool refuses `step add --depends-on` and `dependency add` onto one. Dropping it already moved its waiters onto what it waited on.
 
 ## Retries and crashes
 

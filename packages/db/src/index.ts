@@ -262,6 +262,7 @@ export {
   CloseStep,
   createProject,
   DependencyCycle,
+  DependsOnDropped,
   editPlan,
   isRefusal,
   LinkedElsewhere,
